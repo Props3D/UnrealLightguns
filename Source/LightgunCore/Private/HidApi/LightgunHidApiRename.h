@@ -1,0 +1,41 @@
+// Copyright (c) 2026 Props3D. SPDX-License-Identifier: MIT
+//
+// Gives every public hidapi function a LightgunHid_ prefix, so another plugin that bundles hidapi
+// cannot collide with this one at link time. Include before hidapi.h, in the backend compilation unit
+// (LightgunHidApi.c) and in every file that calls hidapi. Names absent from a given hidapi version are
+// harmless.
+
+#pragma once
+
+#define hid_init LightgunHid_init
+#define hid_exit LightgunHid_exit
+#define hid_enumerate LightgunHid_enumerate
+#define hid_free_enumeration LightgunHid_free_enumeration
+#define hid_open LightgunHid_open
+#define hid_open_path LightgunHid_open_path
+#define hid_write LightgunHid_write
+#define hid_read_timeout LightgunHid_read_timeout
+#define hid_read LightgunHid_read
+#define hid_set_nonblocking LightgunHid_set_nonblocking
+#define hid_send_feature_report LightgunHid_send_feature_report
+#define hid_get_feature_report LightgunHid_get_feature_report
+#define hid_send_output_report LightgunHid_send_output_report
+#define hid_get_input_report LightgunHid_get_input_report
+#define hid_close LightgunHid_close
+#define hid_get_manufacturer_string LightgunHid_get_manufacturer_string
+#define hid_get_product_string LightgunHid_get_product_string
+#define hid_get_serial_number_string LightgunHid_get_serial_number_string
+#define hid_get_device_info LightgunHid_get_device_info
+#define hid_get_indexed_string LightgunHid_get_indexed_string
+#define hid_get_report_descriptor LightgunHid_get_report_descriptor
+#define hid_error LightgunHid_error
+#define hid_read_error LightgunHid_read_error
+#define hid_version LightgunHid_version
+#define hid_version_str LightgunHid_version_str
+#define hid_darwin_get_location_id LightgunHid_darwin_get_location_id
+#define hid_darwin_set_open_exclusive LightgunHid_darwin_set_open_exclusive
+#define hid_darwin_get_open_exclusive LightgunHid_darwin_get_open_exclusive
+#define hid_darwin_is_device_open_exclusive LightgunHid_darwin_is_device_open_exclusive
+#define hid_winapi_get_container_id LightgunHid_winapi_get_container_id
+#define hid_winapi_descriptor_reconstruct_pp_data LightgunHid_winapi_descriptor_reconstruct_pp_data
+#define hid_winapi_set_write_timeout LightgunHid_winapi_set_write_timeout

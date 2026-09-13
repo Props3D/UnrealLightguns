@@ -1,0 +1,43 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "0.1.0",
+	"FriendlyName": "Blamcon Lightguns for Unreal",
+	"Description": "Blamcon lightgun support: aiming, buttons and force feedback (recoil, rumble, RGB LED, ammo display) over HID. Includes hidapi, used under its BSD-3-Clause license option.",
+	"Category": "Input Devices",
+	"CreatedBy": "Props3D",
+	"CreatedByURL": "https://github.com/Props3D",
+	"DocsURL": "https://github.com/Props3D/UnrealLightguns",
+	"MarketplaceURL": "",
+	"SupportURL": "https://github.com/Props3D/UnrealLightguns/issues",
+	"CanContainContent": true,
+	"IsBetaVersion": true,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "LightgunCore",
+			"Type": "Runtime",
+			"LoadingPhase": "PreDefault",
+			"PlatformAllowList": [ "Win64" ]
+		},
+		{
+			"Name": "Lightguns",
+			"Type": "Runtime",
+			"LoadingPhase": "PreDefault",
+			"PlatformAllowList": [ "Win64" ]
+		},
+		{
+			"Name": "LightgunSmokeTest",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [ "Win64" ]
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "EnhancedInput",
+			"Enabled": true
+		}
+	]
+}
