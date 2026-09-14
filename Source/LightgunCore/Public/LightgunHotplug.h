@@ -13,7 +13,7 @@ struct FLightgunHotplugEvent
 {
 	enum class EType : uint8
 	{
-		/** A gun appeared and was opened. Connection is set. */
+		/** A gun appeared and was opened. Connection is set, and DeviceId.Info holds what the gun reported. */
 		Arrived,
 		/** A previously arrived gun is no longer enumerated. */
 		Removed,

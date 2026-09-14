@@ -36,6 +36,9 @@ public:
 	/** Read the next input report without blocking. A backend with no input (e.g. serial) returns NoData. */
 	virtual ELightgunReadResult ReadInput(FLightgunInputState& OutState) = 0;
 
+	/** What the gun reported about itself when it was opened. Not known (bKnown false) if it can't tell. */
+	virtual const FLightgunDeviceInfo& GetDeviceInfo() const = 0;
+
 	/** Release the platform handle. Safe to call more than once. */
 	virtual void Close() = 0;
 };
@@ -48,14 +51,14 @@ struct FLightgunEnumeration
 
 	/**
 	 * Guns that are present but cannot receive feedback, as actionable messages for the log or the UI.
-	 * The important case is a Blamcon gun left in mouse mode.
+	 * The important case is a Blamcon gun in mouse mode on firmware without the vendor collection.
 	 */
 	TArray<FString> Warnings;
 };
 
 /**
  * The seam between lightgun feedback and its transport. HID today (FBlamconHidBackend); a serial
- * backend for guns in mouse mode, and other brands, can be added behind it without touching callers.
+ * backend for other brands can be added behind it without touching callers.
  *
  * Reports use the FLightgunReport layout. A backend for another transport translates its fields.
  *
@@ -72,6 +75,9 @@ public:
 	/** Find connected guns. Finding none is not an error. */
 	virtual void Enumerate(FLightgunEnumeration& OutEnumeration) = 0;
 
-	/** Open a device returned by Enumerate. Returns null and fills OutError on failure. */
+	/**
+	 * Open a device returned by Enumerate, and read what it reports about itself (GetDeviceInfo). May block
+	 * on device I/O. Returns null and fills OutError on failure.
+	 */
 	virtual TSharedPtr<ILightgunConnection, ESPMode::ThreadSafe> Open(const FLightgunDeviceId& Device, FString& OutError) = 0;
 };

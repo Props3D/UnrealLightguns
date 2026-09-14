@@ -10,7 +10,7 @@
  * Milestone 1 exit test: proves the 40-byte report reaches a gun end to end.
  *
  * Opens a Blamcon lightgun, takes recoil control and fires recoil in one report, then releases control
- * through the writer thread. Run with the gun in Gamepad mode:
+ * through the writer thread. Run with the gun in Gamepad mode, or in mouse mode on firmware with the vendor collection:
  *
  *   UnrealEditor-Cmd <Project>.uproject -run=LightgunSmokeTest [-player=1] [-pulses=1]
  *
