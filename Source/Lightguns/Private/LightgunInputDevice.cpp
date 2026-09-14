@@ -33,14 +33,15 @@ namespace LightgunInputDevice
 		return !Id.Info.bKnown || Id.Info.bFeedbackAvailable;
 	}
 
-	ELightgunControl ToControl(uint8 HostControl)
+	/** "recoil, LED" for host control bits. */
+	FString DescribeHostControl(uint8 HostControl)
 	{
-		ELightgunControl Control = ELightgunControl::None;
-		if (HostControl & LightgunDeviceInfoReport::HostControlRecoil) { Control |= ELightgunControl::Recoil; }
-		if (HostControl & LightgunDeviceInfoReport::HostControlRumble) { Control |= ELightgunControl::Rumble; }
-		if (HostControl & LightgunDeviceInfoReport::HostControlLed) { Control |= ELightgunControl::Led; }
-		if (HostControl & LightgunDeviceInfoReport::HostControlAmmo) { Control |= ELightgunControl::Ammo; }
-		return Control;
+		TArray<FString> Names;
+		if (HostControl & LightgunDeviceInfoReport::HostControlRecoil) { Names.Add(TEXT("recoil")); }
+		if (HostControl & LightgunDeviceInfoReport::HostControlRumble) { Names.Add(TEXT("rumble")); }
+		if (HostControl & LightgunDeviceInfoReport::HostControlLed) { Names.Add(TEXT("LED")); }
+		if (HostControl & LightgunDeviceInfoReport::HostControlAmmo) { Names.Add(TEXT("ammo")); }
+		return FString::Join(Names, TEXT(", "));
 	}
 
 	struct FButtonKey
@@ -487,23 +488,14 @@ void FLightgunInputDevice::HandleDeviceInfo(FGun& Gun)
 			Id.PlayerIndex + 1, Info.PlayerNumber, Id.PlayerIndex + 1));
 	}
 
-	// Control held on connect was left by a session that ended without releasing it, such as a crash.
-	const ELightgunControl Leftover = Info.bHasLiveState ? LightgunInputDevice::ToControl(Info.HostControl) : ELightgunControl::None;
-	if (Leftover != ELightgunControl::None && Info.bFeedbackAvailable)
+	// Control already held on connect belongs to someone else: another program, or a process that crashed.
+	// The plugin only ever releases control it took itself in this process, so it just says so. It explains
+	// why the gun's own recoil doesn't fire on the trigger; replugging the gun clears it after a crash.
+	if (Info.bHasLiveState && (Info.HostControl & (LightgunDeviceInfoReport::HostControlRecoil | LightgunDeviceInfoReport::HostControlRumble
+		| LightgunDeviceInfoReport::HostControlLed | LightgunDeviceInfoReport::HostControlAmmo)) != 0)
 	{
-		if (ShouldHoldControl())
-		{
-			// The running session holds it now, so its normal release covers it.
-			Gun.HeldControl |= Leftover;
-			UE_LOG(LogLightgun, Log, TEXT("Lightgun player %d was still under host control (0x%02x); keeping it for this session."),
-				Id.PlayerIndex + 1, Info.HostControl);
-		}
-		else
-		{
-			UE_LOG(LogLightgun, Log, TEXT("Lightgun player %d was still under host control (0x%02x); releasing it."),
-				Id.PlayerIndex + 1, Info.HostControl);
-			SetControl(Gun, Leftover, false, 0);
-		}
+		UE_LOG(LogLightgun, Log, TEXT("Lightgun player %d is already under another host's control (%s): another program, or one that closed without releasing it. Not released; reconnect the gun to clear it."),
+			Id.PlayerIndex + 1, *LightgunInputDevice::DescribeHostControl(Info.HostControl));
 	}
 }
 

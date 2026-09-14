@@ -143,7 +143,7 @@ it into `FLightgunDeviceId::Info`.
 | Valid `0x50` | Logs it in the connect line, e.g. `Lightgun connected: P1 firmware 3.0.0, RP2350, Bluetooth gamepad, feedback yes` |
 | Feedback over HID output = `0` | Warns once ("this gun can't take force feedback in its current mode or connection; update firmware or use USB"), sends no feedback, input keeps working |
 | Player number differs from the PID's player | Warns once with both values. The PID still decides the player index. This is the hardware check for the Bluetooth / Blamcon Buddy open question |
-| Valid `0x51` with control bits set on connect | Leftover control from a crashed or killed session: if no game session is active, releases those components; if one is, records them as held |
+| Valid `0x51` with control bits set on connect | Logs which components another host holds. **Never releases them:** the plugin only releases control it took itself in the running process, and can't tell another program's control (a game, Blamcon ARC, a second Unreal process) from a crashed one's. After a crash the user reconnects the gun. A game session still takes its own components as usual |
 | Unknown board or mode value | Logs the number, treats the field as unknown, carries on |
 | Request fails, answer too short, or no signature | **Legacy firmware:** assumes feedback works over USB (the 3.0 baseline). Over Bluetooth it warns once that feedback may need newer firmware, and still sends it |
 
@@ -482,8 +482,8 @@ udev rule: `KERNEL=="hidraw*", ATTRS{idVendor}=="3673", ATTRS{idProduct}=="010[0
 * Mouse-only play works end to end with the shipped mapping context.
 * Device info and live state (once the section 4.1 firmware changes exist): the connect log shows
   firmware version, board, mode and feedback availability; a gun reporting feedback unavailable gets a
-  warning and no feedback while input keeps working; a gun still under host control after a killed
-  session is released on connect; a gun whose `0x50` answer has no signature is treated as Legacy and
+  warning and no feedback while input keeps working; a gun already under another host's control on
+  connect is logged and not released; a gun whose `0x50` answer has no signature is treated as Legacy and
   still gets USB feedback.
 
 ## 11. Open questions

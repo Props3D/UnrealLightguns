@@ -37,8 +37,8 @@ ENUM_CLASS_FLAGS(ELightgunControl);
  *   light colour drives the LED, and ULightgunLibrary covers the rest.
  * - Control: takes control of each gun while a game session is active and the application has focus,
  *   and releases it otherwise.
- * - Device info: on connect, logs what the gun reports (feature report 0x50), warns about problems it
- *   reveals, and releases control left over from a killed session (0x51). See docs/PLUGIN_SPEC.md 4.1.
+ * - Device info: on connect, logs what the gun reports (feature reports 0x50/0x51) and warns about problems
+ *   it reveals. Only control this process took is ever released. See docs/PLUGIN_SPEC.md 4.1.
  *
  * Game thread only.
  */

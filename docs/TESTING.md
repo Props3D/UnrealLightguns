@@ -109,7 +109,9 @@ On older firmware, or over Bluetooth without re-pairing after an update:
 ### Device info
 
 - [ ] Kill the editor or game from Task Manager during play, then start it again without playing: the log
-      shows `was still under host control ... releasing it`, and the trigger fires recoil by itself.
+      shows `already under another host's control`, and the plugin leaves the gun alone. Reconnect the gun,
+      and the trigger fires recoil by itself again.
+- [ ] Run a packaged build during play, then open the editor: the game keeps control of the gun.
 
 ### Mouse
 
@@ -176,8 +178,9 @@ Two guns share a player number. Give each gun its own player number in Blamcon A
 The game didn't take control. Check the log for errors, and that the game window has focus.
 
 **The gun stays silent after a crash**
-A crash can leave the gun under game control. On firmware that reports device info, the plugin releases it
-next time it starts. Otherwise unplug and reconnect the gun, or turn it off and on.
+A crash can leave the gun under game control. Unplug and reconnect the gun, or turn it off and on. The plugin
+doesn't release control it didn't take in the running game, because it can't tell a crashed game from
+another program that is still using the gun; the log says `already under another host's control`.
 
 **Aim is stuck, or the mouse doesn't aim**
 Mouse aim needs the cursor free to move over the viewport. If your game locks the cursor to the centre, the
