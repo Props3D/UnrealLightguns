@@ -35,8 +35,8 @@ private:
 
 /**
  * Keeps mouse aim current while the mouse is still (movement keys report nothing then), and hands aim to
- * the lightgun: the mapping stays silent while this player has a lightgun connected, so a mouse on the
- * cabinet can't fight the gun.
+ * the lightgun: the mapping stays silent while this player has a gun in gamepad mode connected, so a mouse
+ * on the cabinet can't fight the gun. A gun in mouse mode is the mouse, so mouse aim stays on for it.
  */
 UCLASS(NotBlueprintable, meta = (DisplayName = "Lightgun Mouse Aim"))
 class ULightgunMouseAimTrigger : public UInputTrigger

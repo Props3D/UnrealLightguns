@@ -31,11 +31,14 @@ ENUM_CLASS_FLAGS(ELightgunControl);
  * other input device.
  *
  * - Input: aim and buttons become FLightgunKeys events, each gun with its own FInputDeviceId mapped to the
- *   platform user for its player index, so two guns are two players.
+ *   platform user for its player index, so two guns are two players. A gun in mouse mode sends no input
+ *   here: the OS uses it as a mouse, and the plugin only sends it feedback.
  * - Feedback: engine force feedback drives rumble (large motors) and recoil (small motors), the engine's
  *   light colour drives the LED, and ULightgunLibrary covers the rest.
  * - Control: takes control of each gun while a game session is active and the application has focus,
  *   and releases it otherwise.
+ * - Device info: on connect, logs what the gun reports (feature report 0x50), warns about problems it
+ *   reveals, and releases control left over from a killed session (0x51). See docs/PLUGIN_SPEC.md 4.1.
  *
  * Game thread only.
  */
@@ -55,8 +58,12 @@ public:
 	bool TakeControl(int32 PlayerIndex, ELightgunControl Components, int32 StartingAmmo = 0);
 	bool ReleaseControl(int32 PlayerIndex, ELightgunControl Components);
 
+	/** A gun for this player is connected (in gamepad or mouse mode). */
 	bool IsConnected(int32 PlayerIndex) const;
 	TArray<int32> GetConnectedPlayers() const;
+
+	/** A gun for this player is connected and sends aim and buttons, i.e. isn't in mouse mode. */
+	bool HasGunInput(int32 PlayerIndex) const;
 
 	/** The player index a lightgun input device id belongs to, connected or not, or INDEX_NONE. */
 	int32 GetPlayerIndex(FInputDeviceId InputDeviceId) const;
@@ -74,7 +81,7 @@ public:
 	virtual void SetLightColor(int32 ControllerId, FColor Color) override;
 	virtual void ResetLightColor(int32 ControllerId) override;
 	virtual void SetDeviceProperty(int32 ControllerId, const FInputDeviceProperty* Property) override;
-	virtual bool IsGamepadAttached() const override { return !Guns.IsEmpty(); }
+	virtual bool IsGamepadAttached() const override;
 	//~ End IInputDevice
 
 private:
@@ -101,7 +108,10 @@ private:
 	FGun* FindGun(int32 PlayerIndex);
 	void AddGun(const FLightgunDeviceId& DeviceId, const TSharedRef<ILightgunConnection, ESPMode::ThreadSafe>& Connection);
 	void RemoveGun(const FLightgunDeviceId& DeviceId, const FString& Reason);
-	void SetControl(FGun& Gun, ELightgunControl Components, bool bTake, int32 StartingAmmo);
+	/** Returns false, sending nothing, if the gun reported it can't take feedback. */
+	bool SetControl(FGun& Gun, ELightgunControl Components, bool bTake, int32 StartingAmmo);
+	void HandleDeviceInfo(FGun& Gun);
+	void Warn(const FString& Message);
 	void ApplyForceFeedback(FGun& Gun);
 	void SendButtonEvents(const FGun& Gun, uint32 OldButtons, uint32 NewButtons);
 	void HandleApplicationActivationChanged(bool bIsActive);
