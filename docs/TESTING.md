@@ -144,8 +144,7 @@ want to keep them when you update the plugin.
 ## Troubleshooting
 
 **The plugin doesn't build**
-Send us the first error from the build output, with your Unreal and Visual Studio versions. If the error
-mentions hidapi, run `Scripts/fetch-hidapi.sh` again from the plugin folder in Git Bash.
+Send us the first error from the build output, with your Unreal and Visual Studio versions.
 
 **No "Lightgun connected" message**
 - Check the gun is in Gamepad mode in Blamcon ARC, or in mouse mode on firmware with mouse-mode feedback.

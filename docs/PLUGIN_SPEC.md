@@ -501,6 +501,9 @@ Decided (2026-09-13):
   over USB and Bluetooth with both hidapi and Unity. So mouse-mode Blamcon guns get feedback
   over HID, the §4 warning is only for older firmware, and milestone 3 is about other brands. To
   re-check a gun, use `tools/hidprobe` in `blamcon-lightguns`.
+* **hidapi source in the repo** (2026-09-14): hidapi 0.15.0 is committed under
+  `Source/ThirdParty/hidapi`, so installing the plugin needs no fetch step. `Scripts/fetch-hidapi.sh`
+  updates it.
 
 Still open:
 
@@ -509,8 +512,6 @@ Still open:
   that isn't checked.
 * **Vendor collection on its own USB interface** (deferred). It could avoid the macOS Input Monitoring
   prompt over USB, but not over Bluetooth. Only relevant for the macOS milestone.
-* **hidapi source in the repo.** Currently fetched by `Scripts/fetch-hidapi.sh` (needs Git Bash).
-  Committing it would remove an install step for testers.
 * **Blamcon Buddy / multi-gun over Bluetooth** — does enumeration and player indexing still hold when
   guns arrive over BT rather than USB? Needs hardware confirmation.
 * **Does UE's bundled SDL2 export `SDL_hid_*`?** If so, Linux/macOS could skip vendoring hidapi.

@@ -6,16 +6,18 @@ Linux. Unreal has no API for writing HID output reports (see `docs/PLUGIN_SPEC.m
 **Licence:** hidapi offers GPL v3, BSD-3-Clause or its original licence. This plugin uses it under
 **BSD-3-Clause only**.
 
-## Getting the sources
+## Sources
 
-The sources are not committed yet. From the repo root:
+hidapi **0.15.0** (see `VERSION` and `TAG`) is committed here: `hidapi/hidapi.h`, the `windows/`, `mac/`
+and `linux/` (hidraw) backends, and the licence files. Nothing needs fetching to build the plugin.
+
+To update to another release, from the repo root on macOS or Linux (or Git Bash on Windows):
 
 ```bash
-Scripts/fetch-hidapi.sh
+Scripts/fetch-hidapi.sh hidapi-0.15.0
 ```
 
-This copies `hidapi/hidapi.h`, the `windows/`, `mac/` and `linux/` (hidraw) backends and the licence files
-here. `LightgunHidApi.Build.cs` stops the build with a clear message until they are present.
+Then check that every public function is still renamed (see below) and commit the result.
 
 ## How it is built
 

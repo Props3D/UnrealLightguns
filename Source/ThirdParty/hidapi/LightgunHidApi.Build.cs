@@ -16,7 +16,7 @@ public class LightgunHidApi : ModuleRules
 		if (!File.Exists(Path.Combine(ModuleDirectory, "hidapi", "hidapi.h")))
 		{
 			throw new BuildException(
-				"hidapi sources are missing from {0}. Run Scripts/fetch-hidapi.sh from the plugin root.",
+				"hidapi sources are missing from {0}. They are part of the plugin: restore Source/ThirdParty/hidapi from the repository.",
 				ModuleDirectory);
 		}
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copies the hidapi sources the plugin compiles into Source/ThirdParty/hidapi.
+# Updates the hidapi sources committed in Source/ThirdParty/hidapi. Not needed to build the plugin.
 #
 # Only the public header, the Windows/macOS/Linux (hidraw) backends and the license files are kept.
 # The plugin uses hidapi under its BSD-3-Clause option (see LICENSE).

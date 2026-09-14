@@ -26,7 +26,7 @@ Source/
   LightgunSmokeTest/     editor-only commandlet that fires recoil (milestone 1 exit test)
 Tests/host/              engine-free tests, plain C++11
 Scripts/
-  fetch-hidapi.sh        copies hidapi sources into Source/ThirdParty/hidapi
+  fetch-hidapi.sh        updates the committed hidapi sources in Source/ThirdParty/hidapi
   create_sample_input.py generates the sample Input Mapping Context in the editor
 docs/reference/          C++ reference implementation the report builder was ported from
 ```

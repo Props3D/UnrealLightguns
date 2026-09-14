@@ -30,7 +30,6 @@ Companion to the Unity package [com.blamcon.lightguns](https://github.com/Props3
 
 - Unreal Engine 5.4 or later, on Windows 10 or 11 (Windows only for now)
 - Visual Studio 2022 with the **Game development with C++** workload (the plugin ships as source)
-- Git for Windows, including Git Bash, to fetch the hidapi library
 - A Blamcon lightgun on firmware 3.0 or later, connected by USB or Bluetooth:
   - **Gamepad mode:** aim, buttons and force feedback through the plugin. Needed for gun aim with
     several players.
@@ -47,16 +46,10 @@ Companion to the Unity package [com.blamcon.lightguns](https://github.com/Props3
    git clone https://github.com/Props3D/UnrealLightguns.git Plugins/BlamconLightguns
    ```
 
-2. Fetch hidapi. In Git Bash, from the plugin folder:
-
-   ```bash
-   Scripts/fetch-hidapi.sh
-   ```
-
-3. If your project is Blueprint-only, add any C++ class first (**Tools > New C++ Class**) so Unreal can
+2. If your project is Blueprint-only, add any C++ class first (**Tools > New C++ Class**) so Unreal can
    build the plugin.
-4. Open the project. When Unreal offers to rebuild the missing modules, choose **Yes**.
-5. Check **Edit > Plugins > Blamcon Lightguns for Unreal** is enabled, and restart if prompted.
+3. Open the project. When Unreal offers to rebuild the missing modules, choose **Yes**.
+4. Check **Edit > Plugins > Blamcon Lightguns for Unreal** is enabled, and restart if prompted.
 
 ## Quick start
 
