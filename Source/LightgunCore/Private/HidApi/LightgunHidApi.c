@@ -18,7 +18,7 @@
 #endif
 
 #if defined(_WIN32)
-	#include "windows/hid.c" // hidapi_descriptor_reconstruct.c is a separate unit: LightgunHidApiWinDescriptor.c
+	#include "windows/hid.c" // also compiles hidapi_descriptor_reconstruct.c, which hid.c includes itself
 #elif defined(__APPLE__)
 	#include "mac/hid.c"
 #elif defined(__linux__)
