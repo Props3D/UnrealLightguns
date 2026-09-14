@@ -34,7 +34,9 @@ namespace
 		CHECK(ClassifyCollection(0x01, 0x02) == ECollectionKind::MouseOrKeyboard);
 		CHECK(ClassifyCollection(0x01, 0x06) == ECollectionKind::MouseOrKeyboard);
 		CHECK(ClassifyCollection(0x0C, 0x01) == ECollectionKind::Other);   // consumer control
-		CHECK(ClassifyCollection(0xFF00, 0x05) == ECollectionKind::Other); // vendor page, not generic desktop
+		CHECK(ClassifyCollection(0xFF00, 0x01) == ECollectionKind::Vendor);
+		CHECK(ClassifyCollection(0xFF00, 0x05) == ECollectionKind::Other); // vendor page, another usage
+		CHECK(ClassifyCollection(0xFF01, 0x01) == ECollectionKind::Other);
 		CHECK(ClassifyCollection(0x00, 0x00) == ECollectionKind::Other);
 	}
 
@@ -46,6 +48,7 @@ namespace
 		{
 			CHECK(!Players[Player].IsUsable());
 			CHECK(!Players[Player].IsMouseModeOnly());
+			CHECK_EQ(Players[Player].GetUsableIndex(), -1);
 		}
 	}
 
@@ -63,15 +66,17 @@ namespace
 
 		CHECK(Players[0].IsUsable());
 		CHECK_EQ(Players[0].ControllerIndex, 2);
+		CHECK_EQ(Players[0].GetUsableIndex(), 2);
 		CHECK_EQ(Players[0].ControllerCount, 1);
 		CHECK(!Players[0].IsMouseModeOnly());
 		CHECK(!Players[1].IsUsable());
 		CHECK(!Players[1].IsMouseModeOnly());
 	}
 
-	void TestMouseMode()
+	void TestMouseModeWithoutVendorCollection()
 	{
-		// P2 is only a mouse + keyboard: present, but cannot receive feedback.
+		// P2 is only a mouse + keyboard (older firmware, or a stale Bluetooth pairing): present, but can't
+		// receive feedback.
 		const FHidCollection Collections[] =
 		{
 			Collection(0x3673, 0x0101, 0x01, 0x02),
@@ -88,6 +93,40 @@ namespace
 		CHECK(!Players[0].IsMouseModeOnly());
 	}
 
+	void TestMouseModeWithVendorCollection()
+	{
+		// Windows 11 over USB and over Bluetooth list the same three collections, in this order (spec 4.2).
+		const FHidCollection Collections[] =
+		{
+			Collection(0x3673, 0x0100, 0x01, 0x02),   // Col01 mouse
+			Collection(0x3673, 0x0100, 0x01, 0x06),   // Col02 keyboard
+			Collection(0x3673, 0x0100, 0xFF00, 0x01), // Col03 vendor
+		};
+		FPlayerScan Players[BlamconMaxPlayers];
+		ScanBlamconCollections(Collections, 3, Players);
+
+		CHECK(Players[0].IsUsable());
+		CHECK(!Players[0].IsMouseModeOnly());
+		CHECK_EQ(Players[0].ControllerIndex, -1);
+		CHECK_EQ(Players[0].VendorIndex, 2);
+		CHECK_EQ(Players[0].GetUsableIndex(), 2);
+		CHECK_EQ(Players[0].GetUsableCount(), 1);
+	}
+
+	void TestControllerPreferredOverVendor()
+	{
+		const FHidCollection Collections[] =
+		{
+			Collection(0x3673, 0x0100, 0xFF00, 0x01),
+			Collection(0x3673, 0x0100, 0x01, 0x05),
+		};
+		FPlayerScan Players[BlamconMaxPlayers];
+		ScanBlamconCollections(Collections, 2, Players);
+
+		CHECK_EQ(Players[0].GetUsableIndex(), 1);
+		CHECK_EQ(Players[0].GetUsableCount(), 1);
+	}
+
 	void TestDuplicatePlayerId()
 	{
 		const FHidCollection Collections[] =
@@ -100,6 +139,18 @@ namespace
 
 		CHECK_EQ(Players[0].ControllerIndex, 0);
 		CHECK_EQ(Players[0].ControllerCount, 2);
+		CHECK_EQ(Players[0].GetUsableCount(), 2);
+
+		// Two guns in mouse mode on the same player id.
+		const FHidCollection MouseMode[] =
+		{
+			Collection(0x3673, 0x0101, 0xFF00, 0x01),
+			Collection(0x3673, 0x0101, 0x01, 0x02),
+			Collection(0x3673, 0x0101, 0xFF00, 0x01),
+		};
+		ScanBlamconCollections(MouseMode, 3, Players);
+		CHECK_EQ(Players[1].GetUsableIndex(), 0);
+		CHECK_EQ(Players[1].GetUsableCount(), 2);
 	}
 }
 
@@ -109,6 +160,8 @@ void RunDeviceMatchTests()
 	TestClassify();
 	TestNoDevices();
 	TestGamepadMode();
-	TestMouseMode();
+	TestMouseModeWithoutVendorCollection();
+	TestMouseModeWithVendorCollection();
+	TestControllerPreferredOverVendor();
 	TestDuplicatePlayerId();
 }
