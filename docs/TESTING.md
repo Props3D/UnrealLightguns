@@ -1,8 +1,9 @@
 # Testing Blamcon Lightguns for Unreal
 
-Thanks for trying the plugin. This is an early preview: **it has not yet been built or run in Unreal
-Engine**, so build errors and broken features are likely. Reports of anything that goes wrong are just as
-useful as confirmations that something works.
+Thanks for trying the plugin. This is an early preview. It has been built and run on one setup (Unreal
+Engine 5.6, Windows 11, one gun over USB); see [what has been tested](../CONTRIBUTING.md#hardware-results).
+Everything else is untested, so reports of anything that goes wrong are just as useful as confirmations
+that something works.
 
 Install the plugin first: see [Install in the README](../README.md#install).
 

@@ -7,11 +7,37 @@ changing the report format, threading or control rules.
 
 | Milestone | State |
 |---|---|
-| 1. Transport: `LightgunCore`, writer thread, smoke test | Code complete. Host tests pass; UE build and hardware run still to do |
-| 2. Input device and Blueprint surface | Code complete: input device, keys, subsystem, library, mouse parity and sample generator. UE build, asset generation and hardware run still to do |
-| Device info reports and mouse-mode feedback (spec 4.1, 4.2) | Code complete. Host tests pass; UE build and hardware run still to do |
+| 1. Transport: `LightgunCore`, writer thread, smoke test | Builds on UE 5.6. Feedback works on hardware through the input device; smoke test commandlet not run yet |
+| 2. Input device and Blueprint surface | Builds on UE 5.6. LED exit test passed on hardware; aim, other buttons, rumble, ammo, alt-tab and the sample generator not tested yet |
+| Device info reports and mouse-mode feedback (spec 4.1, 4.2) | Builds on UE 5.6. Mouse-mode feedback and control handoff work on hardware; device info connect line not confirmed yet |
 | 3. Serial backend (other brands) | Not started |
 | Future: macOS, Linux | Deferred |
+
+## Hardware results
+
+Only what was run is listed; everything else is untested.
+
+**2026-09-14:** Windows 11, Unreal Engine 5.6.0, Visual Studio 2022 (MSVC 14.38), AMD Ryzen 7 5800H with
+integrated graphics, one RP2350 gun on firmware `release-3.0`, USB. Test project: First Person template (C++).
+
+| Check | Gamepad mode | Mouse mode |
+|---|---|---|
+| Plugin builds and loads; Lightgun keys appear in Blueprint | Pass | Pass |
+| Gun detected (`Lightgun connected` logged) | Pass | Pass |
+| Flash Led from Blueprint | Pass | Pass (on Left Mouse Button) |
+| Play Recoil from Blueprint | Pass | Not tested |
+| Trigger input reaches Unreal | Pass (`Lightgun Trigger` key event) | Pass (as Left Mouse Button) |
+| Recoil control taken during play: trigger doesn't fire recoil by itself | Pass | Pass |
+| Control released when play stops: trigger fires recoil by itself | Pass | Pass |
+
+Notes:
+- **Build:** the first Windows build found a duplicate hidapi symbol (`LNK2005`), fixed in `41bda77`.
+  Everything else compiled first time.
+- **Editor crash, not the plugin:** Unreal 5.6's DirectX 12 renderer failed to start on this integrated AMD
+  GPU (`GetClockCalibration ... E_FAIL`, driver 25.5.1). The editor ran with `-dx11`.
+- **Aim:** not testable, no IR LEDs. The gun sends button reports without tracking (checked in `joy.cpl`).
+- **Not tested:** the connect line's device info fields, alt-tab, other buttons, rumble, ammo, aim,
+  unplug and replug, Bluetooth, two guns, the smoke test commandlet, the sample input script.
 
 ## Layout
 

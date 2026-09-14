@@ -5,9 +5,10 @@ controller, and your game can drive their force feedback: recoil, rumble, the RG
 
 Companion to the Unity package [com.blamcon.lightguns](https://github.com/Props3D/UnityLightguns).
 
-> **Early preview: not yet built or tested in Unreal Engine.** The protocol code has automated tests, but
-> the plugin itself has not been compiled or run on hardware. Expect build errors and rough edges, and
-> please report them. [docs/TESTING.md](docs/TESTING.md) explains what to try and how to report.
+> **Early preview.** The plugin builds on Unreal Engine 5.6 and the basics work on hardware over USB (one
+> gun, gamepad and mouse mode). Bluetooth, several guns, rumble, ammo and aim haven't been tested yet, so
+> expect rough edges and please report them. [docs/TESTING.md](docs/TESTING.md) explains what to try and
+> how to report.
 
 ## Features
 

@@ -264,6 +264,15 @@ info, while the OS keeps using the gun as a mouse.
     either over Bluetooth.
 * **Unity** also worked over USB and Bluetooth (see *Unity package* below).
 
+**Tested with the Unreal plugin** (2026-09-14, Windows 11, UE 5.6, same gun, USB; details in
+`CONTRIBUTING.md`).
+* In mouse mode the plugin detected the gun and sent report `0x10` through the vendor collection: Flash
+  Led from Blueprint worked, and the trigger reached Unreal as a left mouse click.
+* Recoil control was taken during play (the trigger stopped firing recoil by itself) and released when
+  play stopped, in both mouse and gamepad mode.
+* Not yet confirmed through the plugin: the `0x50`/`0x51` fields in the connect line, rumble, ammo, and
+  anything over Bluetooth.
+
 **Tested on macOS** (2026-09-13, RP2350 gun, USB and Bluetooth, hidapi 0.14). This was the prototype
 build, which has the same descriptor as `release-3.0`.
 * The vendor collection opens.
