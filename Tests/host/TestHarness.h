@@ -26,3 +26,4 @@ extern int GChecks;
 void RunReportTests();
 void RunDeviceMatchTests();
 void RunInputReportTests();
+void RunDeviceInfoReportTests();

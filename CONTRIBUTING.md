@@ -30,16 +30,16 @@ Scripts/
 docs/reference/          C++ reference implementation the report builder was ported from
 ```
 
-`LightgunReport.h`, `LightgunDeviceMatch.h` and `LightgunInputReport.h` are deliberately engine-free, so
+`LightgunReport.h`, `LightgunDeviceMatch.h`, `LightgunInputReport.h` and `LightgunDeviceInfoReport.h` are deliberately engine-free, so
 the wire formats can be tested without Unreal. Keep engine headers out of them.
 
 ## Host tests
 
-Engine-free tests for the report byte layout, merge rules, input report parsing and mouse-mode detection.
+Engine-free tests for the report byte layout, merge rules, input report parsing, device info report parsing and mouse-mode detection.
 Any C++11 compiler, no Unreal needed. From the repo root:
 
 ```bash
-c++ -std=c++11 -Wall -Wextra -Werror -ISource/LightgunCore/Public Tests/host/HostTests.cpp Tests/host/ReportTests.cpp Tests/host/DeviceMatchTests.cpp Tests/host/InputReportTests.cpp -o Tests/host/host_tests && Tests/host/host_tests
+c++ -std=c++11 -Wall -Wextra -Werror -ISource/LightgunCore/Public Tests/host/HostTests.cpp Tests/host/ReportTests.cpp Tests/host/DeviceMatchTests.cpp Tests/host/InputReportTests.cpp Tests/host/DeviceInfoReportTests.cpp -o Tests/host/host_tests && Tests/host/host_tests
 ```
 
 ## Hardware check without Unreal
