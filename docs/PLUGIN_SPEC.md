@@ -133,8 +133,10 @@ payload length `1`.
 #### Plugin behaviour
 
 Reads happen on the hot-plug thread straight after opening the gun, because a GET_REPORT blocks and
-over Bluetooth can take tens of milliseconds. Never every frame. The results are stored on
-`FLightgunDeviceId`.
+over Bluetooth can take tens of milliseconds. Never every frame. Both reports are read with a 13-byte
+buffer, the size of `0x50`: Windows sizes feature reads to the collection's largest feature report. The
+connection keeps the result (`ILightgunConnection::GetDeviceInfo`), and the hot-plug arrival event copies
+it into `FLightgunDeviceId::Info`.
 
 | Result | Plugin does |
 |---|---|
@@ -284,8 +286,13 @@ build, which has the same descriptor as `release-3.0`.
   * Unreal can't tell mice apart, so all guns in mouse mode drive one cursor, and aim is effectively
     single-player.
   * Feedback can still target each gun by its PID.
+  * The gun is still registered with the engine's device mapper, so connect and disconnect events fire,
+    but it sends no input events and doesn't count as an attached gamepad. The Lightgun Mouse Aim trigger
+    keeps mouse aim on for its player.
 * **Connect line.** A vendor-capable gun in mouse mode gets no warning; the connect line shows the mode,
   e.g. `P1 firmware 3.1.0, RP2350, mouse, feedback yes`.
+* **Warning for mouse mode without the collection.** Over Bluetooth it also says to remove and re-pair
+  the gun, because a gun paired before the firmware update looks exactly like older firmware.
 
 **Caveats**
 * **Bluetooth pairing.** Hosts cache the HID descriptor when the gun pairs. After a firmware update that
@@ -368,8 +375,9 @@ lightguns work on the cabinet without touching bindings.
 Enhanced Input has no absolute mouse-position key (`Mouse2D` is movement, and only reports while the
 mouse moves), so the plugin adds two small Enhanced Input classes for the mouse mapping:
 `ULightgunMouseAimModifier` (value = cursor position in the viewport, normalised like `Lightgun_Aim`)
-and `ULightgunMouseAimTrigger` (ticks every frame; silent while that player has a lightgun connected, so
-a mouse on the cabinet can't fight the gun — when two mappings drive one action, the larger value wins).
+and `ULightgunMouseAimTrigger` (ticks every frame; silent while that player has a lightgun connected in
+gamepad mode, so a mouse on the cabinet can't fight the gun — when two mappings drive one action, the
+larger value wins). A gun in mouse mode (§4.2) sends no gun input, so mouse aim stays on for its player.
 Assets can only be written by the editor, so `Scripts/create_sample_input.py` generates
 `IA_LightgunAim`, `IA_LightgunFire` and `IMC_Lightgun` in the plugin's `Content/Samples`.
 

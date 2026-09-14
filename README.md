@@ -21,15 +21,23 @@ Companion to the Unity package [com.blamcon.lightguns](https://github.com/Props3
   to the gun when play stops or the window loses focus.
 - **Mouse parity:** aim and fire with a mouse through the same Input Actions, so you can develop without a
   gun.
-- **Clear diagnostics:** tells you when a gun is in the wrong mode, or when two guns share a player number.
+- **Gamepad or mouse mode:** in Gamepad mode the gun is its own controller. In mouse mode it stays the
+  system mouse and still gets force feedback, on firmware that supports it.
+- **Clear diagnostics:** logs each gun's firmware, board, mode and connection, and tells you when a gun
+  can't take feedback or two guns share a player number.
 
 ## Requirements
 
 - Unreal Engine 5.4 or later, on Windows 10 or 11 (Windows only for now)
 - Visual Studio 2022 with the **Game development with C++** workload (the plugin ships as source)
 - Git for Windows, including Git Bash, to fetch the hidapi library
-- A Blamcon lightgun on firmware 3.0 or later, set to **Gamepad mode** in Blamcon ARC, connected by USB or
-  Bluetooth (Bluetooth feedback needs a current firmware build)
+- A Blamcon lightgun on firmware 3.0 or later, connected by USB or Bluetooth:
+  - **Gamepad mode:** aim, buttons and force feedback through the plugin. Needed for gun aim with
+    several players.
+  - **Mouse mode:** force feedback only needs firmware with mouse-mode feedback (the firmware's
+    `release-3.0` branch, not yet released). The gun aims and fires as the system mouse.
+  - Bluetooth feedback needs a current firmware build. After updating the firmware, remove the gun from
+    Bluetooth settings and pair it again.
 
 ## Install
 
@@ -52,8 +60,8 @@ Companion to the Unity package [com.blamcon.lightguns](https://github.com/Props3
 
 ## Quick start
 
-1. Plug in a gun in Gamepad mode. **Window > Output Log** should show
-   `LogLightgun: Lightgun connected: P1 3673:0100 ...`.
+1. Plug in a gun in Gamepad mode. **Window > Output Log** should show a line like
+   `LogLightgun: Lightgun connected: P1 3673:0100 ... firmware 3.0.0, RP2350, gamepad, feedback yes`.
 2. In your character or player controller Blueprint, add the **Lightgun Trigger** key event, and connect
    **Pressed** to **Play Recoil** with Player Index 0.
 3. Press **Play** and pull the trigger: the gun recoils.
@@ -71,7 +79,8 @@ with Y = 0 at the bottom of the screen. Multiply by the viewport size for screen
 
 To aim with the mouse through the same action, add a **Mouse XY 2D-Axis** mapping to it, with the
 **Lightgun Mouse Aim** modifier and the **Lightgun Mouse Aim** trigger. Mouse aim switches off for a player
-while their gun is connected.
+while their gun is connected in Gamepad mode. A gun in mouse mode *is* the mouse, so mouse aim stays on;
+all guns in mouse mode share one cursor.
 
 `Scripts/create_sample_input.py` can generate a ready-made Input Mapping Context with aim and fire already
 set up for gun and mouse. See [docs/TESTING.md](docs/TESTING.md#optional-sample-input-mapping-context).
