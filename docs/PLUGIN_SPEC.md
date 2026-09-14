@@ -17,7 +17,7 @@ lightgun brands later, and should not fall over for players using a mouse.
 
 | # | Constraint | Consequence |
 |---|---|---|
-| 1 | Windows opens mouse/keyboard HID collections **exclusively** for system use; game controllers (usage 0x04/0x05) are **shared**. | A gun can never receive HID output through its mouse or keyboard collection. Confirmed on hardware. **Feedback requires gamepad/joystick mode**, unless the gun's firmware adds a vendor-defined collection to mouse mode (§4.2, not yet verified on Windows). |
+| 1 | Windows opens mouse/keyboard HID collections **exclusively** for system use; game controllers (usage 0x04/0x05) are **shared**. | A gun can never receive HID output through its mouse or keyboard collection. Confirmed on hardware. **Feedback requires gamepad/joystick mode**, unless the gun's firmware adds a vendor-defined collection to mouse mode (§4.2, confirmed on hardware on Windows and macOS, over USB and Bluetooth). |
 | 2 | `FWindowsApplication` supports **XInput only**; there is no DirectInput path. | A gamepad-mode lightgun produces **zero input** in UE on Windows. If we require gamepad mode for feedback (see 1), we must supply input too. |
 | 3 | UE has **no API to write an arbitrary HID output report**. `IInputDevice` is an extension point; the `RawInput` plugin is Windows-only and read-only; the GameInput wrapper exposes only the input half. | Bundle **hidapi** and own the transport. |
 | 4 | UE's `RawInput` plugin is Experimental and has a reported UE 5.6 regression where axes stop working. | Do not build the input path on it. |
@@ -119,7 +119,7 @@ The firmware works out byte 11 itself from its mode and build, so the host never
 numbers. In mouse mode the host reads both reports through the vendor-defined collection (§4.2), since
 Windows opens the mouse and keyboard collections exclusively (constraint 1). Mouse-mode firmware
 without that collection can't be read at all. With it, mode is `0` over USB and `2` over Bluetooth,
-and byte 11 is `1` (both seen on hardware on macOS).
+and byte 11 is `1` (seen on hardware on macOS and Windows, over USB and Bluetooth).
 
 #### Report `0x51`: live state
 
@@ -158,8 +158,9 @@ only logged, never used to decide behaviour.
   report TinyUSB's default `0x0100`.
 * Bluetooth Classic: the version field of the Device ID SDP record (`device_id_create_sdp_record` in
   `easybt.cpp`). Set on `release-3.0`; released builds send `1`. hidapi on macOS returns this field
-  (`0x0001` seen on hardware with a pre-change build); whether Windows passes it through to hidapi
-  needs a hardware check.
+  (`0x0001` seen on hardware with a pre-change build). **Windows doesn't pass it through:** with
+  `release-3.0` over Bluetooth, hidapi on Windows 11 returned `release_number` `0x0000` and an empty
+  product string. Over Bluetooth on Windows, only report `0x50` identifies the build.
 * Encoding is USB BCD `0xJJMN` (`0x0301` = 3.0.1), so minor and patch are one digit each; report `0x50`
   carries the full version.
 * BLE is not a supported transport and is not planned.
@@ -226,11 +227,11 @@ info, while the OS keeps using the gun as a mouse.
 
 | | USB | Bluetooth Classic |
 |---|---|---|
-| Windows | Expected to work; **not tested on hardware** | Expected to work; **not tested on hardware** |
+| Windows | Tested on hardware: hidapi and Unity | Tested on hardware: hidapi and Unity |
 | macOS | Tested on hardware | Tested on hardware |
 | Linux | Not tested | Not tested |
 
-**Why it is expected to work on Windows**
+**Why it works on Windows**
 * HIDClass creates a separate device for each top-level collection
   ([Top-Level Collections](https://learn.microsoft.com/en-us/windows-hardware/drivers/hid/top-level-collections)).
 * Only system usages such as mouse, keyboard, pen and touch are listed as opened exclusively
@@ -238,12 +239,31 @@ info, while the OS keeps using the gun as a mouse.
   Vendor-defined pages aren't listed, so nothing in Windows claims them.
 * Windows accepts only report IDs that belong to the opened collection, which is why `0x10`, `0x50` and
   `0x51` are declared inside the vendor collection.
-* Bluetooth HID devices go through the same class driver, so the split should be identical over
-  Bluetooth. The hardware check is in §11.
+* Bluetooth HID devices go through the same class driver, so the split is the same over Bluetooth.
+
+**Tested on Windows 11** (2026-09-14, RP2350 gun on `release-3.0`, hidapi 0.14 via the Python probe).
+* **USB:**
+  * The gun enumerated as three collections on interface 2: `MI_02&Col01` mouse, `Col02` keyboard,
+    `Col03` vendor.
+  * `Col03` opened, with no "Access denied".
+  * `0x50` decoded as firmware 3.0.0, RP2350, mode `0`, feedback `1`, player 1. `0x51` decoded too.
+  * Every `hid_write` of `0x10` returned 40, and the `0x51` control bits followed take and release for
+    recoil and the LED.
+  * Trigger clicks kept reaching Windows while the collection was held open.
+* **Bluetooth:**
+  * The same three collections appeared on the Bluetooth HID path,
+    `HID#{00001124-0000-1000-8000-00805f9b34fb}_VID&00013673_PID&0100&Col01`–`Col03`, with
+    `interface_number` `-1`.
+  * hidapi still reported VID `0x3673` and PID `0x0100`, so grouping by PID works over Bluetooth.
+  * `Col03` opened, and `0x50` decoded as mode `2` (Bluetooth mouse), feedback `1`.
+  * Every `hid_write` of `0x10` returned 40, with the `0x51` control bits following.
+  * Trigger clicks kept reaching Windows while the collection was held open.
+  * `release_number` was `0x0000` and the product string was empty, so the plugin must not rely on
+    either over Bluetooth.
+* **Unity** also worked over USB and Bluetooth (see *Unity package* below).
 
 **Tested on macOS** (2026-09-13, RP2350 gun, USB and Bluetooth, hidapi 0.14). This was the prototype
-build. `release-3.0` has the same descriptor on top of the final `0x50`/`0x51` code, and that
-combination builds and passes the native tests but hasn't been tested on hardware yet.
+build, which has the same descriptor as `release-3.0`.
 * The vendor collection opens.
 * `0x50` and `0x51` decode correctly.
 * Report `0x10` takes recoil control, fires one pulse and releases control, and does the same for the
@@ -269,8 +289,9 @@ combination builds and passes the native tests but hasn't been tested on hardwar
 
 **Caveats**
 * **Bluetooth pairing.** Hosts cache the HID descriptor when the gun pairs. After a firmware update that
-  adds the collection, the gun must be removed and paired again. This was needed on macOS and is
-  expected on Windows.
+  adds the collection, the gun must be removed and paired again. This was needed on macOS. On Windows
+  every test was run after removing and re-pairing the gun, so whether Windows would keep the old
+  descriptor without it wasn't checked. Release notes should tell users to re-pair.
 * **macOS (deferred platform).**
   * macOS makes one HID device per USB interface or Bluetooth link, so the vendor collection shares a
     device with the keyboard collection.
@@ -287,12 +308,24 @@ combination builds and passes the native tests but hasn't been tested on hardwar
   input handling; permissions come from the udev rule in §8.
 
 **Unity package (companion).**
-* **Possible on Windows.** The package could use the same collection for feedback: register a
-  feedback-only layout matching usage page `0xFF00`, usage `0x01` and VID/PID, and send `0x10` with a
-  `HIDO` command, as it does today in gamepad mode. A layout with its own matcher bypasses
-  `HIDSupport.supportedHIDUsages`.
-* **Unverified.** Whether Unity's native Windows backend reports a vendor-defined collection at all.
-  Check in the Input Debugger with a gun in mouse mode.
+* **Works on Windows over USB and Bluetooth (tested on hardware, 2026-09-14).** The gun was an RP2350 on
+  `release-3.0`, in USB mouse mode and then Bluetooth mouse mode (re-paired). The details below are from
+  the USB run; Bluetooth gave the same results.
+  * Unity's native backend reports the vendor collection as its own HID device: usage page 65280, usage
+    1, `outputReportSize` 40, `featureReportSize` 13, `inputReportSize` 0, device version 768 (3.0.0).
+  * A test layout matching usage page `0xFF00`, usage `0x01` and VID `0x3673` picked it up. A layout
+    with its own matcher bypasses `HIDSupport.supportedHIDUsages`.
+  * The package's existing `BlamconHIDOutputReport` sent as `HIDO` returned `1` for every command. Recoil
+    (take control, fire, release) and LED (take control, flash, release) both worked on the gun.
+* **Package change needed:** a feedback-only device class with that matcher, and the existing `0x10`
+  commands sent to it when the gun has no gamepad device. Aim and fire come through Unity's normal Mouse.
+* **Stale devices after a firmware update.** Unity kept devices from the gun's previous firmware
+  listed after a reflash, until the Editor restarted. `HIDO` to those returns `-1`. The package should
+  send to the most recently added matching device, not the first in the list.
+* **Unity's parsed elements** list every byte of `0x10` and `0x50`/`0x51` with `reportOffsetInBits` 8.
+  This looks harmless because the package sends raw reports, but don't build a layout from those
+  elements.
+* **Not tested:** rumble and ammo through `0x10`.
 * **No feature reports.** Unity's Input System has no command to read them, so `0x50`/`0x51` would need
   native code.
 * **macOS is unlikely,** because the shared device reports the mouse as its main usage.
@@ -416,9 +449,9 @@ udev rule: `KERNEL=="hidraw*", ATTRS{idVendor}=="3673", ATTRS{idProduct}=="010[0
    *Exit: a designer can flash the LED from a Blueprint with no C++; the gun aims and fires in a blank
    project, and the mouse does too, with the same bindings.*
 3. **Second backend** (serial) behind `ILightgunFeedbackBackend`, proving the seam — this is what
-   makes other brands viable. For Blamcon guns it would only matter for firmware without the mouse-mode
-   vendor collection: if §4.2 holds on Windows, mouse-mode feedback goes over HID, and this milestone is
-   about other brands.
+   makes other brands viable. For Blamcon guns it only matters for firmware without the mouse-mode
+   vendor collection: §4.2 works on Windows over USB and Bluetooth, so mouse-mode feedback goes over HID,
+   and this milestone is about other brands.
 
 ### Future milestones (deferred)
 
@@ -456,19 +489,13 @@ Decided (2026-09-13):
 * **Firmware info without serial commands:** signed HID feature reports for device info (`0x50`) and
   live state (`0x51`), plus the device version at enumeration. Minimal first version in section 4.1;
   the firmware changes listed there are on `release-3.0`, not yet in a release.
+* **Mouse-mode feedback over HID** (2026-09-14): the vendor-defined collection (§4.2) works on Windows
+  over USB and Bluetooth with both hidapi and Unity. So mouse-mode Blamcon guns get feedback
+  over HID, the §4 warning is only for older firmware, and milestone 3 is about other brands. To
+  re-check a gun, use `tools/hidprobe` in `blamcon-lightguns`.
 
 Still open:
 
-* **Does the mouse-mode vendor collection work on Windows?** (§4.2.) Tested only on macOS so far. Flash
-  a `release-3.0` build, put the gun in mouse mode, then over USB and over Bluetooth (after re-pairing)
-  check:
-  * a "HID-compliant vendor-defined device" appears;
-  * `hid_open_path` succeeds on the `Col03` path;
-  * `0x50`/`0x51` read and `hid_write` of `0x10` returns 40;
-  * the gun still works as the system mouse.
-  An "Access denied" on open would rule the approach out. The hidapi probe in `blamcon-lightguns`
-  (`tools/hidprobe`, whose README has the Windows checklist) does these steps. The result decides
-  milestone 3's scope and the §4 warning.
 * **Emulators and lightgun front ends on Windows with the extra collection.** They should ignore a
   vendor-defined device, since Raw Input and DirectInput only pick up mice and game controllers, but
   that isn't checked.
