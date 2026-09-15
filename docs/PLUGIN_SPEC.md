@@ -270,8 +270,10 @@ info, while the OS keeps using the gun as a mouse.
   Led from Blueprint worked, and the trigger reached Unreal as a left mouse click.
 * Recoil control was taken during play (the trigger stopped firing recoil by itself) and released when
   play stopped, in both mouse and gamepad mode.
-* Not yet confirmed through the plugin: the `0x50`/`0x51` fields in the connect line, rumble, ammo, and
-  anything over Bluetooth.
+* Buttons (A, B, Y, Start, Select, D-pad) and rumble were verified on the same setup on 2026-09-16, in
+  gamepad mode.
+* Not yet confirmed through the plugin: the `0x50`/`0x51` fields in the connect line, the ammo display,
+  aim, two guns, and anything over Bluetooth.
 
 **Tested on macOS** (2026-09-13, RP2350 gun, USB and Bluetooth, hidapi 0.14). This was the prototype
 build, which has the same descriptor as `release-3.0`.
@@ -388,7 +390,7 @@ and `ULightgunMouseAimTrigger` (ticks every frame; silent while that player has 
 gamepad mode, so a mouse on the cabinet can't fight the gun — when two mappings drive one action, the
 larger value wins). A gun in mouse mode (§4.2) sends no gun input, so mouse aim stays on for its player.
 Assets can only be written by the editor, so `Scripts/create_sample_input.py` generates
-`IA_LightgunAim`, `IA_LightgunFire` and `IMC_Lightgun` in the plugin's `Content/Samples`.
+`IA_LightgunAim`, `IA_LightgunFire`, `IA_LightgunReload` and `IMC_Lightgun` in the plugin's `Content/Input`.
 
 ## 6. Feedback
 

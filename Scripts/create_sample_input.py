@@ -7,21 +7,24 @@ instead of being authored by hand. Run it once in the Unreal Editor, then commit
     1. Enable the "Python Editor Script Plugin" for the project.
     2. Tools > Execute Python Script... and pick this file.
 
-It creates, in the plugin's content (Content Browser: Plugins > Blamcon Lightguns Content > Samples):
+It creates, in the plugin's content (Content Browser: Plugins > Blamcon Lightguns Content > Input):
 
     IA_LightgunAim    Axis2D   aim position, 0..1, Y = 0 at the bottom
     IA_LightgunFire   Digital
+    IA_LightgunReload Digital
     IMC_Lightgun      Lightgun Aim           -> IA_LightgunAim
                       Mouse XY 2D-Axis       -> IA_LightgunAim   (Lightgun Mouse Aim modifier + trigger)
                       Lightgun Trigger       -> IA_LightgunFire
                       Left Mouse Button      -> IA_LightgunFire
+                      Lightgun A             -> IA_LightgunReload
+                      R                      -> IA_LightgunReload
 
 Running it again rebuilds the mappings and leaves the actions' other settings alone.
 """
 
 import unreal
 
-SAMPLE_PATH = "/BlamconLightguns/Samples"
+ASSET_PATH = "/BlamconLightguns/Input"
 
 
 def make_key(name):
@@ -31,10 +34,10 @@ def make_key(name):
 
 
 def load_or_create(name, asset_class, factory):
-    path = "{}/{}".format(SAMPLE_PATH, name)
+    path = "{}/{}".format(ASSET_PATH, name)
     if unreal.EditorAssetLibrary.does_asset_exist(path):
         return unreal.EditorAssetLibrary.load_asset(path)
-    asset = unreal.AssetToolsHelpers.get_asset_tools().create_asset(name, SAMPLE_PATH, asset_class, factory)
+    asset = unreal.AssetToolsHelpers.get_asset_tools().create_asset(name, ASSET_PATH, asset_class, factory)
     if asset is None:
         raise RuntimeError("Could not create {}".format(path))
     return asset
@@ -47,6 +50,9 @@ def main():
     fire = load_or_create("IA_LightgunFire", unreal.InputAction, unreal.InputAction_Factory())
     fire.set_editor_property("value_type", unreal.InputActionValueType.BOOLEAN)
 
+    reload_action = load_or_create("IA_LightgunReload", unreal.InputAction, unreal.InputAction_Factory())
+    reload_action.set_editor_property("value_type", unreal.InputActionValueType.BOOLEAN)
+
     context = load_or_create("IMC_Lightgun", unreal.InputMappingContext, unreal.InputMappingContext_Factory())
     context.set_editor_property("mappings", [])
 
@@ -54,6 +60,8 @@ def main():
     context.map_key(aim, make_key("Mouse2D"))
     context.map_key(fire, make_key("Lightgun_Trigger"))
     context.map_key(fire, make_key("LeftMouseButton"))
+    context.map_key(reload_action, make_key("Lightgun_ButtonA"))
+    context.map_key(reload_action, make_key("R"))
 
     # Mappings come back from Python as copies: edit the list, then write it back.
     mappings = context.get_editor_property("mappings")
@@ -63,10 +71,10 @@ def main():
             mapping.set_editor_property("triggers", [unreal.new_object(unreal.LightgunMouseAimTrigger, outer=context)])
     context.set_editor_property("mappings", mappings)
 
-    for asset in (aim, fire, context):
+    for asset in (aim, fire, reload_action, context):
         unreal.EditorAssetLibrary.save_loaded_asset(asset)
 
-    unreal.log("Blamcon Lightguns: sample input assets written to {}".format(SAMPLE_PATH))
+    unreal.log("Blamcon Lightguns: sample input assets written to {}".format(ASSET_PATH))
 
 
 main()

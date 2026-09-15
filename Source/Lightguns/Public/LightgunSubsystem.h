@@ -30,15 +30,15 @@ public:
 	//~ End USubsystem
 
 	/** A gun connected. PlayerIndex is 0-based. Guns already connected at startup don't fire this: use Get Connected Lightguns. */
-	UPROPERTY(BlueprintAssignable, Category = "Lightguns")
+	UPROPERTY(BlueprintAssignable, Category = "Blamcon|Lightguns")
 	FLightgunConnectionChangedSignature OnLightgunConnected;
 
 	/** A gun was unplugged or stopped responding. PlayerIndex is 0-based. */
-	UPROPERTY(BlueprintAssignable, Category = "Lightguns")
+	UPROPERTY(BlueprintAssignable, Category = "Blamcon|Lightguns")
 	FLightgunConnectionChangedSignature OnLightgunDisconnected;
 
 	/** A gun is present but can't be used, e.g. it is in mouse mode. The message says how to fix it. */
-	UPROPERTY(BlueprintAssignable, Category = "Lightguns")
+	UPROPERTY(BlueprintAssignable, Category = "Blamcon|Lightguns")
 	FLightgunWarningSignature OnLightgunWarning;
 
 private:

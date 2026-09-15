@@ -8,7 +8,7 @@ changing the report format, threading or control rules.
 | Milestone | State |
 |---|---|
 | 1. Transport: `LightgunCore`, writer thread, smoke test | Builds on UE 5.6. Feedback works on hardware through the input device; smoke test commandlet not run yet |
-| 2. Input device and Blueprint surface | Builds on UE 5.6. LED exit test passed on hardware; aim, other buttons, rumble, ammo, alt-tab and the sample generator not tested yet |
+| 2. Input device and Blueprint surface | Builds on UE 5.6. LED exit test passed on hardware; buttons and rumble verified; aim, ammo, alt-tab and the sample generator not tested yet |
 | Device info reports and mouse-mode feedback (spec 4.1, 4.2) | Builds on UE 5.6. Mouse-mode feedback and control handoff work on hardware; device info connect line not confirmed yet |
 | 3. Serial backend (other brands) | Not started |
 | Future: macOS, Linux | Deferred |
@@ -27,6 +27,8 @@ integrated graphics, one RP2350 gun on firmware `release-3.0`, USB. Test project
 | Flash Led from Blueprint | Pass | Pass (on Left Mouse Button) |
 | Play Recoil from Blueprint | Pass | Not tested |
 | Trigger input reaches Unreal | Pass (`Lightgun Trigger` key event) | Pass (as Left Mouse Button) |
+| Other buttons: A, B, Y, Start, Select, D-pad | Pass | n/a (arrive as mouse input) |
+| Play Rumble from Blueprint | Pass | Not tested |
 | Recoil control taken during play: trigger doesn't fire recoil by itself | Pass | Pass |
 | Control released when play stops: trigger fires recoil by itself | Pass | Pass |
 
@@ -36,8 +38,24 @@ Notes:
 - **Editor crash, not the plugin:** Unreal 5.6's DirectX 12 renderer failed to start on this integrated AMD
   GPU (`GetClockCalibration ... E_FAIL`, driver 25.5.1). The editor ran with `-dx11`.
 - **Aim:** not testable, no IR LEDs. The gun sends button reports without tracking (checked in `joy.cpl`).
-- **Not tested:** the connect line's device info fields, alt-tab, other buttons, rumble, ammo, aim,
-  unplug and replug, Bluetooth, two guns, the smoke test commandlet, the sample input script.
+- **2026-09-16:** rumble and the remaining buttons (A, B, Y, Start, Select, D-pad) verified on the same
+  setup. Rumble was recorded in gamepad mode; mouse mode is still untested.
+- **2026-09-17, C++ integration:** same setup, one gun over USB. A game module that adds `Lightguns` to
+  `PublicDependencyModuleNames` builds and links against `ULightgunLibrary`, `FLightgunKeys` and
+  `ULightgunSubsystem`. From C++: `SetLedColor` (solid green), `FlashLed`, `PlayRecoil`, `PlayRumble`,
+  `SetAmmoCount` and `TakeFeedbackControl` all worked, and `OnLightgunConnected` fired on replug.
+  `FLightgunKeys::Trigger` and `ButtonA` fire when bound with `UInputComponent::BindKey` on the pawn's
+  input component, and `APlayerController::WasInputKeyJustPressed(FLightgunKeys::Trigger)` also works.
+  Earlier attempts that bound on a level actor and on the player controller failed, but those runs were in
+  mouse mode, so they prove nothing about the input stack: untested. In mouse mode the gun's
+  keys don't arrive at all, as expected, while feedback still works. Mouse mode passed the same feedback
+  checks from C++ with the trigger bound to `EKeys::LeftMouseButton`, and alt-tab away and back behaved.
+- **LED, expected behaviour:** a solid colour and a flash sent in the same frame merge into one report and
+  the flash wins, leaving the LED dark when it finishes. Not a bug; the plugin documents it instead.
+- **Not tested:** the connect line's device info fields, aim, the ammo display itself (the calls were made,
+  but this gun has no display fitted), two guns, the smoke test commandlet, the sample input script.
+- **Bluetooth:** not available in any current firmware release, so not a supported connection yet. The
+  plugin's Bluetooth handling (transport detection, the Bluetooth warnings) stays for when firmware adds it.
 
 ## Layout
 

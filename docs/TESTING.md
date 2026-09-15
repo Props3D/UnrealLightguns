@@ -12,9 +12,10 @@ Install the plugin first: see [Install in the README](../README.md#install).
 - **Gun mode:** set the gun to **Gamepad mode** in Blamcon ARC for most tests. In mouse mode the gun stays
   the system mouse, and gets force feedback only on firmware with mouse-mode feedback (the firmware's
   `release-3.0` branch).
-- **Firmware:** 3.0 or later. Bluetooth feedback needs a current build.
-- **Bluetooth after a firmware update:** remove the gun from Windows Bluetooth settings and pair it again.
-  Windows keeps the gun's old HID description from when it was paired.
+- **Firmware:** 2.1.0 or later. Mouse-mode feedback and the device info in the connect line need the
+  firmware's `release-3.0` branch.
+- **Connection:** USB only. Bluetooth isn't available in any current firmware release; it's planned for a
+  future one.
 - **Logs:** most results show up in **Window > Output Log**. Type `LogLightgun` in the search box to see
   only the plugin's messages. The full log is in `Saved/Logs/<YourProject>.log`.
 
@@ -26,8 +27,8 @@ Install the plugin first: see [Install in the README](../README.md#install).
    LogLightgun: Lightgun connected: P1 3673:0100 (...), firmware 3.0.0, RP2350, gamepad, feedback yes
    ```
 
-   Firmware older than the device info reports shows `firmware unknown` instead. Include this line in any
-   report.
+   Released firmware (2.1.0) doesn't report device info, so it shows `firmware unknown, USB` instead.
+   Include this line in any report.
 
 2. In your character or player controller Blueprint, add the **Lightgun Trigger** key event, and connect
    **Pressed** to **Play Recoil** (Player Index 0).
@@ -44,10 +45,9 @@ Play-in-Editor with the gun in Gamepad mode.
 ### Connection
 
 - [ ] Gun connected over **USB** shows `Lightgun connected` in the log.
-- [ ] Gun connected over **Bluetooth** shows `Lightgun connected` in the log.
 - [ ] Unplug the gun during play: the log shows `Lightgun disconnected`, and nothing freezes or crashes.
 - [ ] Plug it back in: it reconnects within a couple of seconds, and input and recoil work again.
-- [ ] The connect line shows the firmware version, board, mode (`gamepad` or `Bluetooth gamepad`) and
+- [ ] On `release-3.0` firmware, the connect line shows the firmware version, board, mode (`gamepad`) and
       `feedback yes`.
 - [ ] **On Lightgun Connected**, **On Lightgun Disconnected** and **On Lightgun Warning** fire on the
       Lightgun Subsystem.
@@ -86,26 +86,22 @@ Play-in-Editor with the gun in Gamepad mode.
 - [ ] Each gun is a separate player (P1 is player index 0, P2 is 1, and so on).
 - [ ] Feedback sent to one player index reaches only that gun.
 - [ ] Two guns set to the **same player number** log a warning.
-- [ ] Over **Bluetooth**, and through a **Blamcon Buddy** if you have one: each gun still gets the right
-      player, and no `reports player number` warning appears.
+- [ ] On `release-3.0` firmware, no `reports player number` warning appears.
 
 ### Mouse mode
 
-On firmware with mouse-mode feedback:
+On firmware with mouse-mode feedback (`release-3.0`):
 
-- [ ] Over **USB**: the connect line shows `mouse, feedback yes`, with no mouse-mode warning.
-- [ ] Over **Bluetooth** (re-paired after the firmware update): the connect line shows
-      `Bluetooth mouse, feedback yes`.
+- [ ] The connect line shows `mouse, feedback yes`, with no mouse-mode warning.
 - [ ] While play runs, the gun still moves the cursor and clicks as the system mouse.
 - [ ] **Play Recoil**, **Play Rumble**, **Set Led Color** and **Set Ammo Count** (after Take Feedback
       Control with Ammo) each work. Rumble and ammo haven't been tested in mouse mode yet.
 - [ ] Mouse aim through the Lightgun Mouse Aim mapping still works for that player.
 - [ ] Stop play: the trigger fires recoil by itself again.
 
-On older firmware, or over Bluetooth without re-pairing after an update:
+On released firmware (2.1.0):
 
-- [ ] The log shows `found in mouse mode without feedback support`. Over Bluetooth it also suggests
-      pairing again.
+- [ ] The log shows `found in mouse mode without feedback support`, and the gun works as a normal mouse.
 
 ### Device info
 
@@ -120,21 +116,23 @@ On older firmware, or over Bluetooth without re-pairing after an update:
       [Aiming with Enhanced Input](../README.md#aiming-with-enhanced-input)).
 - [ ] Connect a gun in Gamepad mode for that player: the gun aims, and the mouse no longer moves the aim.
 
-## Optional: sample Input Mapping Context
+## Sample Input Mapping Context
 
-`Scripts/create_sample_input.py` generates Input Actions and an Input Mapping Context already wired up
-for gun and mouse. The script itself is untested, so tell us if it fails.
+The plugin ships Input Actions and an Input Mapping Context already wired up for gun and mouse. Find them
+in the Content Browser, in the **Input** folder of the plugin's content (under **Plugins**). If there's no
+Plugins folder, enable **Show Plugin Content** in the Content Browser settings.
+
+`Scripts/create_sample_input.py` regenerates them, which is only needed if you change or delete them:
 
 1. Enable **Edit > Plugins > Python Editor Script Plugin** and restart.
 2. Run **Tools > Execute Python Script...** and choose `Plugins/BlamconLightguns/Scripts/create_sample_input.py`.
-3. Find the assets in the Content Browser, in the **Samples** folder of the plugin's content (under
-   **Plugins**). If there's no Plugins folder, enable **Show Plugin Content** in the Content Browser settings.
 
 | Asset | Contents |
 |---|---|
 | `IA_LightgunAim` | Axis2D action |
 | `IA_LightgunFire` | Digital action |
-| `IMC_Lightgun` | Aim from Lightgun Aim or the mouse; Fire from Lightgun Trigger or Left Mouse Button |
+| `IA_LightgunReload` | Digital action |
+| `IMC_Lightgun` | Aim from Lightgun Aim or the mouse; Fire from Lightgun Trigger or Left Mouse Button; Reload from Lightgun A or R |
 
 Add `IMC_Lightgun` with **Add Mapping Context** on the Enhanced Input Local Player Subsystem, then bind
 the two actions in your pawn or controller.
@@ -149,27 +147,22 @@ Send us the first error from the build output, with your Unreal and Visual Studi
 
 **No "Lightgun connected" message**
 - Check the gun is in Gamepad mode in Blamcon ARC, or in mouse mode on firmware with mouse-mode feedback.
-- Try another USB cable or port, or reconnect Bluetooth.
+- Try another USB cable or port. Bluetooth isn't supported yet.
 - If you use **HidHide**, add `UnrealEditor.exe` (and your packaged game) to its allow list.
 - Look for `Could not open lightgun` or `Lightgun support is disabled` in the log, and send it to us.
 
 **"found in mouse mode without feedback support"**
 Windows reserves the gun's mouse and keyboard for itself, so a game can only send feedback through the extra
-channel newer firmware adds. Either update the gun's firmware, or change it to Gamepad mode in Blamcon ARC.
-Over Bluetooth, if you already updated the firmware, remove the gun from Bluetooth settings and pair it
-again: Windows keeps the description the gun had when it was paired.
+channel the firmware's `release-3.0` branch adds. Either use that firmware, or change the gun to Gamepad mode
+in Blamcon ARC.
 
 **"can't take force feedback in its current mode or connection"**
-The gun says its firmware can't take feedback this way, usually over Bluetooth on an older build. Input
-still works. Update the firmware or connect by USB.
-
-**"is on Bluetooth with firmware that doesn't report its version"**
-The firmware is too old to say whether it supports feedback over Bluetooth. Feedback is still sent. If
-nothing happens, update the firmware or connect by USB.
+The gun says its firmware can't take feedback this way. Input still works. Connect by USB, and report it
+with the connect line.
 
 **"reports player number"**
 The gun's player number in Blamcon ARC doesn't match the player it connected as. The plugin uses the
-connected player. Please report this with the connection type (USB, Bluetooth, Blamcon Buddy).
+connected player. Please report this with the connect line.
 
 **"lightguns are set to player N"**
 Two guns share a player number. Give each gun its own player number in Blamcon ARC.
@@ -192,6 +185,7 @@ If the log shows `write failed`, `write stalled` or `input read failed`, unplug 
 ## Known limitations
 
 - Windows only. macOS and Linux are planned.
+- USB only. Bluetooth needs a future firmware release.
 - Up to four guns (player numbers 1–4).
 - In mouse mode, input comes from the system mouse: guns in mouse mode share one cursor, so aim is
   effectively single-player. Use Gamepad mode for multiplayer.
@@ -207,8 +201,8 @@ If the log shows `write failed`, `write stalled` or `input read failed`, unplug 
 Please open an issue at <https://github.com/Props3D/UnrealLightguns/issues> with:
 
 - Unreal Engine version, Windows version, and Visual Studio version if it's a build problem
-- The `Lightgun connected` line (firmware, board, mode and connection), or the firmware version if there
-  isn't one
+- The `Lightgun connected` line (firmware, board, mode and connection), and the gun's firmware version from
+  Blamcon ARC
 - How many guns were connected
 - What you did, what you expected, and what happened
 - The `LogLightgun` lines from the Output Log, or the whole `Saved/Logs/<YourProject>.log`

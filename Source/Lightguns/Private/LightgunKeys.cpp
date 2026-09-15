@@ -21,7 +21,7 @@ const FKey FLightgunKeys::DPadRight(TEXT("Lightgun_DPadRight"));
 void FLightgunKeys::Register()
 {
 	static const FName Category(TEXT("Lightgun"));
-	EKeys::AddMenuCategoryDisplayInfo(Category, LOCTEXT("Category", "Lightgun"), TEXT("GraphEditor.PadEvent_16x"));
+	EKeys::AddMenuCategoryDisplayInfo(Category, LOCTEXT("Category", "Blamcon Lightgun"), TEXT("GraphEditor.PadEvent_16x"));
 
 	const uint32 Button = FKeyDetails::GamepadKey;
 	const uint32 Axis = FKeyDetails::GamepadKey | FKeyDetails::Axis1D;
