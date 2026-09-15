@@ -1,7 +1,7 @@
 {
 	"FileVersion": 3,
-	"Version": 1,
-	"VersionName": "0.1.0",
+	"Version": 2,
+	"VersionName": "2.0.0",
 	"FriendlyName": "Blamcon Lightguns for Unreal",
 	"Description": "Blamcon lightgun support: aiming, buttons and force feedback (recoil, rumble, RGB LED, ammo display) over HID. Includes hidapi, used under its BSD-3-Clause license option.",
 	"Category": "Input Devices",
