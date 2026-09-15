@@ -3,6 +3,7 @@
 #include "BlamconHidBackend.h"
 
 #include "LightgunCoreLog.h"
+#include "LightgunDeviceInfoReport.h"
 #include "LightgunDeviceMatch.h"
 #include "LightgunInputReport.h"
 #include "LightgunReport.h"
@@ -68,12 +69,40 @@ namespace BlamconHid
 		return Out;
 	}
 
+	/**
+	 * Read feature reports 0x50 and 0x51. Anything unreadable leaves Info not known (legacy firmware).
+	 *
+	 * Both use a buffer the size of 0x50: Windows sizes feature reads to the collection's largest feature
+	 * report. Firmware older than the reports answers with stale bytes or not at all, which the signature
+	 * check rejects.
+	 */
+	FLightgunDeviceInfo ReadDeviceInfo(hid_device* Handle)
+	{
+		using namespace LightgunDeviceInfoReport;
+
+		FLightgunDeviceInfo Info;
+		uint8_t Buffer[ReadBufferSize];
+
+		FMemory::Memzero(Buffer, sizeof(Buffer));
+		Buffer[0] = DeviceInfoReportId;
+		if (!ParseDeviceInfo(Buffer, hid_get_feature_report(Handle, Buffer, sizeof(Buffer)), Info))
+		{
+			return Info;
+		}
+
+		FMemory::Memzero(Buffer, sizeof(Buffer));
+		Buffer[0] = LiveStateReportId;
+		ParseLiveState(Buffer, hid_get_feature_report(Handle, Buffer, sizeof(Buffer)), Info);
+		return Info;
+	}
+
 	class FConnection final : public ILightgunConnection
 	{
 	public:
 		/** Takes ownership of Handle and of one hidapi reference. */
-		explicit FConnection(hid_device* InHandle)
+		FConnection(hid_device* InHandle, const FLightgunDeviceInfo& InInfo)
 			: Handle(InHandle)
+			, Info(InInfo)
 		{
 		}
 
@@ -114,7 +143,8 @@ namespace BlamconHid
 				return ELightgunReadResult::Error;
 			}
 
-			// Anything that isn't a gamepad report (e.g. a keyboard collection's report) is skipped.
+			// Anything that isn't a gamepad report is skipped. The mouse-mode vendor collection has no input
+			// reports, so it always ends up here with no data.
 			uint8_t Buffer[64];
 			for (;;)
 			{
@@ -143,9 +173,25 @@ namespace BlamconHid
 			}
 		}
 
+		virtual const FLightgunDeviceInfo& GetDeviceInfo() const override
+		{
+			return Info;
+		}
+
 	private:
 		hid_device* Handle;
+		FLightgunDeviceInfo Info;
 	};
+
+	ELightgunTransport ToTransport(hid_bus_type BusType)
+	{
+		switch (BusType)
+		{
+		case HID_API_BUS_USB: return ELightgunTransport::Usb;
+		case HID_API_BUS_BLUETOOTH: return ELightgunTransport::Bluetooth;
+		default: return ELightgunTransport::Unknown;
+		}
+	}
 }
 
 FBlamconHidBackend::FBlamconHidBackend()
@@ -174,6 +220,7 @@ void FBlamconHidBackend::Enumerate(FLightgunEnumeration& OutEnumeration)
 
 	TArray<FHidCollection> Collections;
 	TArray<FLightgunDeviceId> Ids;
+	bool bPlayerOnBluetooth[BlamconMaxPlayers] = {};
 
 	hid_device_info* const List = hid_enumerate(BlamconVendorId, 0x0000);
 	for (hid_device_info* Info = List; Info; Info = Info->next)
@@ -194,6 +241,9 @@ void FBlamconHidBackend::Enumerate(FLightgunEnumeration& OutEnumeration)
 		Id.SerialNumber = BlamconHid::FromWide(Info->serial_number);
 		Id.ProductName = BlamconHid::FromWide(Info->product_string);
 		Id.PlayerIndex = GetBlamconPlayerIndex(Info->product_id);
+		Id.Transport = BlamconHid::ToTransport(Info->bus_type);
+		Id.DeviceVersion = Info->release_number;
+		bPlayerOnBluetooth[Id.PlayerIndex] |= Id.Transport == ELightgunTransport::Bluetooth;
 	}
 	if (List)
 	{
@@ -208,19 +258,24 @@ void FBlamconHidBackend::Enumerate(FLightgunEnumeration& OutEnumeration)
 		const FPlayerScan& Scan = Players[Player];
 		if (Scan.IsUsable())
 		{
-			OutEnumeration.Devices.Add(Ids[Scan.ControllerIndex]);
-			if (Scan.ControllerCount > 1)
+			FLightgunDeviceId& Id = Ids[Scan.GetUsableIndex()];
+			Id.bHasGunInput = Scan.ControllerIndex >= 0;
+			OutEnumeration.Devices.Add(Id);
+			if (Scan.GetUsableCount() > 1)
 			{
 				OutEnumeration.Warnings.Add(FString::Printf(
 					TEXT("%d Blamcon lightguns are set to player %d; only the first gets feedback. Give each gun its own player number in Blamcon ARC."),
-					Scan.ControllerCount, Player + 1));
+					Scan.GetUsableCount(), Player + 1));
 			}
 		}
 		else if (Scan.IsMouseModeOnly())
 		{
+			// Over Bluetooth the host keeps the descriptor from pairing, so an updated gun looks like old firmware
+			// until it is paired again.
 			OutEnumeration.Warnings.Add(FString::Printf(
-				TEXT("Blamcon lightgun (player %d) found in mouse mode. Force feedback requires Gamepad mode - change it in Blamcon ARC."),
-				Player + 1));
+				TEXT("Blamcon lightgun (player %d) found in mouse mode without feedback support. Update the gun's firmware, or switch it to Gamepad mode in Blamcon ARC.%s"),
+				Player + 1,
+				bPlayerOnBluetooth[Player] ? TEXT(" If you already updated the firmware, remove the gun from Bluetooth settings and pair it again.") : TEXT("")));
 		}
 	}
 }
@@ -255,8 +310,11 @@ TSharedPtr<ILightgunConnection, ESPMode::ThreadSafe> FBlamconHidBackend::Open(co
 		return nullptr;
 	}
 
+	// Blocking control transfers, which is why Open runs on the hot-plug thread.
+	const FLightgunDeviceInfo Info = BlamconHid::ReadDeviceInfo(Handle);
+
 	// Input is drained every frame from the game thread, so reads must never block.
 	hid_set_nonblocking(Handle, 1);
 
-	return MakeShared<BlamconHid::FConnection, ESPMode::ThreadSafe>(Handle);
+	return MakeShared<BlamconHid::FConnection, ESPMode::ThreadSafe>(Handle, Info);
 }

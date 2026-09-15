@@ -47,10 +47,11 @@ ETriggerState ULightgunMouseAimTrigger::UpdateState_Implementation(const UEnhanc
 		return ETriggerState::None;
 	}
 
-	// Lightguns are mapped to players by controller id (see FLightgunInputDevice).
+	// Lightguns are mapped to players by controller id (see FLightgunInputDevice). A gun in mouse mode is the
+	// mouse, so only a gun that sends its own aim turns mouse aim off.
 	const FLightgunsModule* const Module = FLightgunsModule::Get();
 	const FLightgunInputDevice* const Device = Module ? Module->GetInputDevice() : nullptr;
-	const bool bLightgunConnected = Device && Device->IsConnected(LocalPlayer->GetControllerId());
+	const bool bGunAims = Device && Device->HasGunInput(LocalPlayer->GetControllerId());
 
-	return bLightgunConnected ? ETriggerState::None : ETriggerState::Triggered;
+	return bGunAims ? ETriggerState::None : ETriggerState::Triggered;
 }

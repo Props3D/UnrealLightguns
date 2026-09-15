@@ -21,6 +21,10 @@ namespace LightgunDeviceMatch
 	static const uint16_t UsageGamepad = 0x05;
 	static const uint16_t UsageKeyboard = 0x06;
 
+	/** The Blamcon vendor-defined collection that firmware with mouse-mode feedback adds (spec section 4.2). */
+	static const uint16_t UsagePageBlamconVendor = 0xFF00;
+	static const uint16_t UsageBlamconVendor = 0x01;
+
 	inline bool IsBlamconProduct(uint16_t VendorId, uint16_t ProductId)
 	{
 		return VendorId == BlamconVendorId
@@ -44,11 +48,20 @@ namespace LightgunDeviceMatch
 		Controller,
 		/** Opened exclusively by the OS on Windows: output reports can never reach it. */
 		MouseOrKeyboard,
+		/**
+		 * Blamcon vendor-defined collection, next to the mouse and keyboard in mouse mode. Nothing in Windows
+		 * claims it, so it takes output report 0x10 and feature reports 0x50/0x51. It has no input reports.
+		 */
+		Vendor,
 		Other,
 	};
 
 	inline ECollectionKind ClassifyCollection(uint16_t UsagePage, uint16_t Usage)
 	{
+		if (UsagePage == UsagePageBlamconVendor && Usage == UsageBlamconVendor)
+		{
+			return ECollectionKind::Vendor;
+		}
 		if (UsagePage != UsagePageGenericDesktop)
 		{
 			return ECollectionKind::Other;
@@ -80,20 +93,35 @@ namespace LightgunDeviceMatch
 		int ControllerIndex;
 		/** Controller collections seen for this player id. More than one means two guns share a player id. */
 		int ControllerCount;
+		/** Index of the first vendor collection, or -1. */
+		int VendorIndex;
+		/** Vendor collections seen for this player id. */
+		int VendorCount;
 		bool bHasMouseOrKeyboard;
 
-		/** The gun is present but cannot receive feedback: it is in mouse mode. */
-		bool IsMouseModeOnly() const { return ControllerCount == 0 && bHasMouseOrKeyboard; }
-		bool IsUsable() const { return ControllerIndex >= 0; }
+		/**
+		 * The gun is present but cannot receive feedback: in mouse mode on firmware without the vendor
+		 * collection, or paired over Bluetooth before a firmware update added it.
+		 */
+		bool IsMouseModeOnly() const { return ControllerCount == 0 && VendorCount == 0 && bHasMouseOrKeyboard; }
+
+		bool IsUsable() const { return GetUsableIndex() >= 0; }
+
+		/** The collection to open: the controller (gamepad mode), else the vendor collection (mouse mode), else -1. */
+		int GetUsableIndex() const { return ControllerIndex >= 0 ? ControllerIndex : VendorIndex; }
+
+		/** Guns sharing this player id, counted in the collection kind that is used. */
+		int GetUsableCount() const { return ControllerIndex >= 0 ? ControllerCount : VendorCount; }
 	};
 
 	/**
-	 * Group collections by Blamcon player id. A gun can expose several collections (in gamepad mode it
-	 * may also have a keyboard collection), so a gun is usable if any of its collections is a
-	 * controller, and in mouse mode only if it has mouse/keyboard collections and no controller.
+	 * Group collections by Blamcon player id. A gun exposes several collections (in mouse mode a mouse, a
+	 * keyboard and, on newer firmware, the vendor collection), so a gun is usable if any of its
+	 * collections is a controller or the vendor collection.
 	 *
-	 * Grouping is by product id because that is what identifies a Blamcon player, and Windows gives
-	 * each collection of one gun a different path.
+	 * Grouping is by product id because that is what identifies a Blamcon player: Windows gives each
+	 * collection of one gun a different path, and over Bluetooth it reports no interface number but keeps
+	 * the product id.
 	 */
 	inline void ScanBlamconCollections(const FHidCollection* Collections, size_t Count, FPlayerScan OutPlayers[BlamconMaxPlayers])
 	{
@@ -101,6 +129,8 @@ namespace LightgunDeviceMatch
 		{
 			OutPlayers[Player].ControllerIndex = -1;
 			OutPlayers[Player].ControllerCount = 0;
+			OutPlayers[Player].VendorIndex = -1;
+			OutPlayers[Player].VendorCount = 0;
 			OutPlayers[Player].bHasMouseOrKeyboard = false;
 		}
 
@@ -124,6 +154,13 @@ namespace LightgunDeviceMatch
 				break;
 			case ECollectionKind::MouseOrKeyboard:
 				Player.bHasMouseOrKeyboard = true;
+				break;
+			case ECollectionKind::Vendor:
+				if (Player.VendorIndex < 0)
+				{
+					Player.VendorIndex = static_cast<int>(Index);
+				}
+				++Player.VendorCount;
 				break;
 			case ECollectionKind::Other:
 				break;

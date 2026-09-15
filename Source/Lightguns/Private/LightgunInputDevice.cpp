@@ -27,6 +27,23 @@ namespace LightgunInputDevice
 	/** Cap on input reports drained per gun per frame (reports arrive at about 1 kHz). */
 	constexpr int32 MaxReportsPerFrame = 64;
 
+	/** A gun that reported it can't take feedback gets none; legacy firmware can't tell, so it does. */
+	bool CanTakeFeedback(const FLightgunDeviceId& Id)
+	{
+		return !Id.Info.bKnown || Id.Info.bFeedbackAvailable;
+	}
+
+	/** "recoil, LED" for host control bits. */
+	FString DescribeHostControl(uint8 HostControl)
+	{
+		TArray<FString> Names;
+		if (HostControl & LightgunDeviceInfoReport::HostControlRecoil) { Names.Add(TEXT("recoil")); }
+		if (HostControl & LightgunDeviceInfoReport::HostControlRumble) { Names.Add(TEXT("rumble")); }
+		if (HostControl & LightgunDeviceInfoReport::HostControlLed) { Names.Add(TEXT("LED")); }
+		if (HostControl & LightgunDeviceInfoReport::HostControlAmmo) { Names.Add(TEXT("ammo")); }
+		return FString::Join(Names, TEXT(", "));
+	}
+
 	struct FButtonKey
 	{
 		uint32 Bit;
@@ -102,7 +119,7 @@ bool FLightgunInputDevice::SendFeedback(int32 PlayerIndex, const FLightgunReport
 	bool bSent = false;
 	for (FGun& Gun : Guns)
 	{
-		if (PlayerIndex == AllPlayers || Gun.Id.PlayerIndex == PlayerIndex)
+		if ((PlayerIndex == AllPlayers || Gun.Id.PlayerIndex == PlayerIndex) && LightgunInputDevice::CanTakeFeedback(Gun.Id))
 		{
 			bSent |= Writer.Send(Gun.WriterHandle, Report);
 		}
@@ -117,8 +134,7 @@ bool FLightgunInputDevice::TakeControl(int32 PlayerIndex, ELightgunControl Compo
 	{
 		if (PlayerIndex == AllPlayers || Gun.Id.PlayerIndex == PlayerIndex)
 		{
-			SetControl(Gun, Components, true, StartingAmmo);
-			bFound = true;
+			bFound |= SetControl(Gun, Components, true, StartingAmmo);
 		}
 	}
 	return bFound;
@@ -131,8 +147,7 @@ bool FLightgunInputDevice::ReleaseControl(int32 PlayerIndex, ELightgunControl Co
 	{
 		if (PlayerIndex == AllPlayers || Gun.Id.PlayerIndex == PlayerIndex)
 		{
-			SetControl(Gun, Components, false, 0);
-			bFound = true;
+			bFound |= SetControl(Gun, Components, false, 0);
 		}
 	}
 	return bFound;
@@ -141,6 +156,17 @@ bool FLightgunInputDevice::ReleaseControl(int32 PlayerIndex, ELightgunControl Co
 bool FLightgunInputDevice::IsConnected(int32 PlayerIndex) const
 {
 	return Guns.ContainsByPredicate([PlayerIndex](const FGun& Gun) { return Gun.Id.PlayerIndex == PlayerIndex; });
+}
+
+bool FLightgunInputDevice::HasGunInput(int32 PlayerIndex) const
+{
+	return Guns.ContainsByPredicate([PlayerIndex](const FGun& Gun) { return Gun.Id.PlayerIndex == PlayerIndex && Gun.Id.bHasGunInput; });
+}
+
+bool FLightgunInputDevice::IsGamepadAttached() const
+{
+	// Mouse-mode guns aren't gamepads to the engine: their input arrives as the mouse.
+	return Guns.ContainsByPredicate([](const FGun& Gun) { return Gun.Id.bHasGunInput; });
 }
 
 TArray<int32> FLightgunInputDevice::GetConnectedPlayers() const
@@ -206,11 +232,7 @@ void FLightgunInputDevice::Tick(float DeltaTime)
 				RemoveGun(Event.DeviceId, TEXT("unplugged"));
 				break;
 			case FLightgunHotplugEvent::EType::Warning:
-				UE_LOG(LogLightgun, Warning, TEXT("%s"), *Event.Message);
-				if (FLightgunsModule* const Module = FLightgunsModule::Get())
-				{
-					Module->OnWarning.Broadcast(Event.Message);
-				}
+				Warn(Event.Message);
 				break;
 			}
 		}
@@ -225,6 +247,11 @@ void FLightgunInputDevice::SendControllerEvents()
 	for (int32 Index = Guns.Num() - 1; Index >= 0; --Index)
 	{
 		FGun& Gun = Guns[Index];
+		if (!Gun.Id.bHasGunInput)
+		{
+			// Mouse mode: the vendor collection has no input reports, and reading one isn't meaningful.
+			continue;
+		}
 		const bool bFirstReport = !Gun.bHasInput;
 		const float OldAimX = Gun.Input.AimX;
 		const float OldAimY = Gun.Input.AimY;
@@ -353,7 +380,8 @@ void FLightgunInputDevice::AddGun(const FLightgunDeviceId& DeviceId, const TShar
 	Gun.InputDeviceId = *InputDeviceId;
 	Gun.UserId = FGenericPlatformMisc::GetPlatformUserForUserIndex(DeviceId.PlayerIndex);
 
-	UE_LOG(LogLightgun, Log, TEXT("Lightgun connected: %s"), *DeviceId.ToString());
+	UE_LOG(LogLightgun, Log, TEXT("Lightgun connected: %s, %s"), *DeviceId.ToString(), *DeviceId.Describe());
+	HandleDeviceInfo(Gun);
 
 	if (ShouldHoldControl())
 	{
@@ -394,11 +422,15 @@ void FLightgunInputDevice::RemoveGun(const FLightgunDeviceId& DeviceId, const FS
 	IPlatformInputDeviceMapper::Get().Internal_SetInputDeviceConnectionState(Gun.InputDeviceId, EInputDeviceConnectionState::Disconnected);
 }
 
-void FLightgunInputDevice::SetControl(FGun& Gun, ELightgunControl Components, bool bTake, int32 StartingAmmo)
+bool FLightgunInputDevice::SetControl(FGun& Gun, ELightgunControl Components, bool bTake, int32 StartingAmmo)
 {
+	if (!LightgunInputDevice::CanTakeFeedback(Gun.Id))
+	{
+		return false;
+	}
 	if (Components == ELightgunControl::None)
 	{
-		return;
+		return true;
 	}
 
 	const bool bRecoil = EnumHasAnyFlags(Components, ELightgunControl::Recoil);
@@ -423,10 +455,66 @@ void FLightgunInputDevice::SetControl(FGun& Gun, ELightgunControl Components, bo
 		Gun.HeldControl &= ~Components;
 	}
 	Writer.Send(Gun.WriterHandle, Report);
+	return true;
+}
+
+void FLightgunInputDevice::HandleDeviceInfo(FGun& Gun)
+{
+	const FLightgunDeviceId& Id = Gun.Id;
+	const FLightgunDeviceInfo& Info = Id.Info;
+
+	if (!Info.bKnown)
+	{
+		// Legacy firmware says nothing about itself. Feedback over USB is the 3.0 baseline; over Bluetooth it
+		// may not be supported, so say so rather than failing silently. Feedback is still sent.
+		if (Id.Transport == ELightgunTransport::Bluetooth)
+		{
+			Warn(FString::Printf(TEXT("Blamcon lightgun (player %d) is on Bluetooth with firmware that doesn't report its version. Force feedback over Bluetooth may need a firmware update; use USB if feedback doesn't work."),
+				Id.PlayerIndex + 1));
+		}
+		return;
+	}
+
+	if (!Info.bFeedbackAvailable)
+	{
+		Warn(FString::Printf(TEXT("Blamcon lightgun (player %d) can't take force feedback in its current mode or connection (%s). Update the gun's firmware or use USB. Input still works."),
+			Id.PlayerIndex + 1, *Id.Describe()));
+	}
+
+	// The product id decides the player index; the gun's own setting should agree with it.
+	if (Info.PlayerNumber != Id.PlayerIndex + 1)
+	{
+		Warn(FString::Printf(TEXT("Blamcon lightgun connected as player %d reports player number %d. Using player %d."),
+			Id.PlayerIndex + 1, Info.PlayerNumber, Id.PlayerIndex + 1));
+	}
+
+	// Control already held on connect belongs to someone else: another program, or a process that crashed.
+	// The plugin only ever releases control it took itself in this process, so it just says so. It explains
+	// why the gun's own recoil doesn't fire on the trigger; replugging the gun clears it after a crash.
+	if (Info.bHasLiveState && (Info.HostControl & (LightgunDeviceInfoReport::HostControlRecoil | LightgunDeviceInfoReport::HostControlRumble
+		| LightgunDeviceInfoReport::HostControlLed | LightgunDeviceInfoReport::HostControlAmmo)) != 0)
+	{
+		UE_LOG(LogLightgun, Log, TEXT("Lightgun player %d is already under another host's control (%s): another program, or one that closed without releasing it. Not released; reconnect the gun to clear it."),
+			Id.PlayerIndex + 1, *LightgunInputDevice::DescribeHostControl(Info.HostControl));
+	}
+}
+
+void FLightgunInputDevice::Warn(const FString& Message)
+{
+	UE_LOG(LogLightgun, Warning, TEXT("%s"), *Message);
+	if (FLightgunsModule* const Module = FLightgunsModule::Get())
+	{
+		Module->OnWarning.Broadcast(Message);
+	}
 }
 
 void FLightgunInputDevice::ApplyForceFeedback(FGun& Gun)
 {
+	if (!LightgunInputDevice::CanTakeFeedback(Gun.Id))
+	{
+		return;
+	}
+
 	const FForceFeedbackValues& Values = Gun.ForceFeedback;
 
 	// Large motors: the rumble motor only pulses, so keep pulsing while the channel stays on.
