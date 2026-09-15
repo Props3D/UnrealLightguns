@@ -105,6 +105,7 @@ private:
 			FLightgunHotplugEvent Event;
 			Event.Type = FLightgunHotplugEvent::EType::Arrived;
 			Event.DeviceId = DeviceId;
+			Event.DeviceId.Info = Connection->GetDeviceInfo();
 			Event.Connection = MoveTemp(Connection);
 			Events.Enqueue(MoveTemp(Event));
 		}

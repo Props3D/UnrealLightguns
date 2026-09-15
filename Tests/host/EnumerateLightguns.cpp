@@ -82,7 +82,7 @@ int main(int ArgCount, char** Args)
 		if (Players[Player].IsUsable())
 		{
 			++Usable;
-			std::printf("P%d: usable, %s\n", Player + 1, Paths[Players[Player].ControllerIndex].c_str());
+			std::printf("P%d: usable, %s\n", Player + 1, Paths[Players[Player].GetUsableIndex()].c_str());
 		}
 		else if (Players[Player].IsMouseModeOnly())
 		{
@@ -99,7 +99,7 @@ int main(int ArgCount, char** Args)
 			std::printf("--recoil: no usable player 1\n");
 			Result = 1;
 		}
-		else if (hid_device* Device = hid_open_path(Paths[Players[0].ControllerIndex].c_str()))
+		else if (hid_device* Device = hid_open_path(Paths[Players[0].GetUsableIndex()].c_str()))
 		{
 			std::printf("--recoil: take recoil control + fire 1 pulse\n");
 			bool bOk = Send(Device, FLightgunReport().TakeControl(true, false, false, false).Recoil(1));

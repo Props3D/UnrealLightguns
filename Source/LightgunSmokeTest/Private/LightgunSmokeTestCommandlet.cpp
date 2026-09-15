@@ -70,7 +70,7 @@ int32 ULightgunSmokeTestCommandlet::Main(const FString& Params)
 		[PlayerNumber](const FLightgunDeviceId& Candidate) { return Candidate.PlayerIndex == PlayerNumber - 1; });
 	if (!Device)
 	{
-		UE_LOG(LogLightgun, Error, TEXT("No Blamcon lightgun in Gamepad or Joystick mode for player %d (%d usable gun(s) found)."),
+		UE_LOG(LogLightgun, Error, TEXT("No Blamcon lightgun that can take feedback for player %d (%d usable gun(s) found)."),
 			PlayerNumber, Enumeration.Devices.Num());
 		return 1;
 	}
@@ -81,6 +81,14 @@ int32 ULightgunSmokeTestCommandlet::Main(const FString& Params)
 	{
 		UE_LOG(LogLightgun, Error, TEXT("Could not open %s: %s"), *Device->ToString(), *OpenError);
 		return 1;
+	}
+
+	FLightgunDeviceId Opened = *Device;
+	Opened.Info = Connection->GetDeviceInfo();
+	UE_LOG(LogLightgun, Display, TEXT("Opened %s: %s"), *Opened.ToString(), *Opened.Describe());
+	if (Opened.Info.bKnown && !Opened.Info.bFeedbackAvailable)
+	{
+		UE_LOG(LogLightgun, Warning, TEXT("The gun reports it can't take feedback in its current mode or connection; sending anyway."));
 	}
 
 	FLightgunWriterThread Writer;
