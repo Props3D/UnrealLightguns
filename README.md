@@ -31,13 +31,12 @@ Companion to the Unity package [com.blamcon.lightguns](https://github.com/Props3
 
 - Unreal Engine 5.4 or later, on Windows 10 or 11 (Windows only for now)
 - Visual Studio 2022 with the **Game development with C++** workload (the plugin ships as source)
-- A Blamcon lightgun on firmware 3.0 or later, connected by USB or Bluetooth:
+- A Blamcon lightgun on firmware 2.1.0 or later, connected by USB:
   - **Gamepad mode:** aim, buttons and force feedback through the plugin. Needed for gun aim with
     several players.
   - **Mouse mode:** force feedback only needs firmware with mouse-mode feedback (the firmware's
     `release-3.0` branch, not yet released). The gun aims and fires as the system mouse.
-  - Bluetooth feedback needs a current firmware build. After updating the firmware, remove the gun from
-    Bluetooth settings and pair it again.
+  - Bluetooth support is not available in any current releases. This is planned for a future firmware release.
 
 ## Install
 
