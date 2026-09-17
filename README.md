@@ -185,6 +185,11 @@ Copy the assets into your own project's content if you want to keep changes when
 shipping game, reference them with `TObjectPtr<UInputAction>` properties set in a Blueprint subclass rather
 than loading by path.
 
+The assets were saved by Unreal 5.6, and Unreal can't open assets from a newer version than its own. On 5.4
+or 5.5 they fail to load; run `Scripts/create_sample_input.py` to regenerate them for your engine, as
+[docs/TESTING.md](docs/TESTING.md#sample-input-mapping-context) describes. The script is the source of truth
+for what the assets contain, and everything else in the plugin is source that builds on 5.4.
+
 For connection and warning events, bind to `ULightgunSubsystem` (a Game Instance Subsystem). The handlers
 must be `UFUNCTION`s:
 

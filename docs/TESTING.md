@@ -122,7 +122,9 @@ The plugin ships Input Actions and an Input Mapping Context already wired up for
 in the Content Browser, in the **Input** folder of the plugin's content (under **Plugins**). If there's no
 Plugins folder, enable **Show Plugin Content** in the Content Browser settings.
 
-`Scripts/create_sample_input.py` regenerates them, which is only needed if you change or delete them:
+The assets were saved by Unreal 5.6. Unreal can't open assets from a newer version than its own, so on 5.4
+or 5.5 they won't load and you need to regenerate them. Regenerating is also how you get them back if you
+change or delete them:
 
 1. Enable **Edit > Plugins > Python Editor Script Plugin** and restart.
 2. Run **Tools > Execute Python Script...** and choose `Plugins/BlamconLightguns/Scripts/create_sample_input.py`.
@@ -135,7 +137,7 @@ Plugins folder, enable **Show Plugin Content** in the Content Browser settings.
 | `IMC_Lightgun` | Aim from Lightgun Aim or the mouse; Fire from Lightgun Trigger or Left Mouse Button; Reload from Lightgun A or R |
 
 Add `IMC_Lightgun` with **Add Mapping Context** on the Enhanced Input Local Player Subsystem, then bind
-the two actions in your pawn or controller.
+the three actions in your pawn or controller.
 
 The assets are written inside the plugin folder, so copy them into your own project's content if you
 want to keep them when you update the plugin.
