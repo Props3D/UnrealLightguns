@@ -187,3 +187,58 @@ FString ULightgunLibrary::GetPluginVersion()
 	const TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("BlamconLightguns"));
 	return Plugin.IsValid() ? Plugin->GetDescriptor().VersionName : FString();
 }
+
+bool ULightgunLibrary::PlayLightgunFeedback(int32 PlayerIndex, const FLightgunFeedback& Feedback)
+{
+	if (Feedback.IsEmpty())
+	{
+		return false;
+	}
+
+	FLightgunReport Report;
+	if (Feedback.bRecoil)
+	{
+		// Send both periods or neither: a period of 0 means "use the gun's own setting".
+		if (Feedback.RecoilOnMs > 0 && Feedback.RecoilOffMs > 0)
+		{
+			Report.Recoil(Feedback.RecoilPulses, Feedback.RecoilOnMs, Feedback.RecoilOffMs);
+		}
+		else
+		{
+			Report.Recoil(Feedback.RecoilPulses);
+		}
+	}
+	if (Feedback.bRumble)
+	{
+		if (Feedback.RumbleOnMs > 0 && Feedback.RumbleOffMs > 0)
+		{
+			Report.Rumble(Feedback.RumblePulses, Feedback.RumbleOnMs, Feedback.RumbleOffMs);
+		}
+		else
+		{
+			Report.Rumble(Feedback.RumblePulses);
+		}
+	}
+	if (Feedback.bLed)
+	{
+		const FColor Srgb = Feedback.LedColor.ToFColor(true);
+		if (Feedback.LedFlashes <= 0)
+		{
+			Report.Led(Srgb.R, Srgb.G, Srgb.B);
+		}
+		else if (Feedback.LedLitMs > 0 && Feedback.LedDarkMs > 0)
+		{
+			Report.Led(Srgb.R, Srgb.G, Srgb.B, Feedback.LedFlashes, Feedback.LedLitMs, Feedback.LedDarkMs);
+		}
+		else
+		{
+			Report.Led(Srgb.R, Srgb.G, Srgb.B, Feedback.LedFlashes);
+		}
+	}
+	if (Feedback.bAmmo)
+	{
+		Report.Ammo(Feedback.AmmoRemaining);
+	}
+
+	return LightgunLibrary::Send(PlayerIndex, Report);
+}

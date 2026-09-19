@@ -18,7 +18,8 @@ changing the report format, threading or control rules.
 Only what was run is listed; everything else is untested.
 
 **2026-09-14:** Windows 11, Unreal Engine 5.6.0, Visual Studio 2022 (MSVC 14.38), AMD Ryzen 7 5800H with
-integrated graphics, one RP2350 gun on firmware `release-3.0`, USB. Test project: First Person template (C++).
+integrated graphics, one RP2350 gun on a `release-3.0` development build (same HID behaviour as firmware
+2.1.0), USB. Test project: First Person template (C++).
 
 | Check | Gamepad mode | Mouse mode |
 |---|---|---|
@@ -54,8 +55,9 @@ Notes:
   the flash wins, leaving the LED dark when it finishes. Not a bug; the plugin documents it instead.
 - **Not tested:** the connect line's device info fields, aim, the ammo display itself (the calls were made,
   but this gun has no display fitted), two guns, the smoke test commandlet, the sample input script.
-- **Bluetooth:** not available in any current firmware release, so not a supported connection yet. The
-  plugin's Bluetooth handling (transport detection, the Bluetooth warnings) stays for when firmware adds it.
+- **Bluetooth:** feedback over Bluetooth is planned for firmware 4.0.0, so it is not a supported
+  connection yet. The plugin's Bluetooth handling (transport detection, the Bluetooth warnings) stays
+  for when that firmware ships.
 
 ## Layout
 

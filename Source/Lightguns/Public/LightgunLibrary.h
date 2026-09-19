@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "LightgunFeedback.h"
 #include "LightgunInfo.h"
 
 #include "LightgunLibrary.generated.h"
@@ -73,6 +74,14 @@ public:
 	/** 0-based player indices of the connected guns, in order. */
 	UFUNCTION(BlueprintPure, Category = "Blamcon|Lightguns")
 	static TArray<int32> GetConnectedLightguns();
+
+	/**
+	 * Send a whole feedback struct as one report, so everything in it happens together: recoil, rumble,
+	 * LED and ammo. Components whose switch is off are left alone. Store one per weapon to keep its feel
+	 * in one place.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Blamcon|Lightguns")
+	static bool PlayLightgunFeedback(int32 PlayerIndex, const FLightgunFeedback& Feedback);
 
 	/**
 	 * What the plugin knows about one player's gun: mode, firmware, whether it takes feedback. Use it to

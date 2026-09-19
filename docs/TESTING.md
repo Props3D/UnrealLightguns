@@ -10,12 +10,9 @@ Install the plugin first: see [Install in the README](../README.md#install).
 ## Before you start
 
 - **Gun mode:** set the gun to **Gamepad mode** in Blamcon ARC for most tests. In mouse mode the gun stays
-  the system mouse, and gets force feedback only on firmware with mouse-mode feedback (the firmware's
-  `release-3.0` branch).
-- **Firmware:** 2.1.0 or later. Mouse-mode feedback and the device info in the connect line need the
-  firmware's `release-3.0` branch.
-- **Connection:** USB only. Bluetooth isn't available in any current firmware release; it's planned for a
-  future one.
+  the system mouse, and gets force feedback through the vendor-defined collection added in firmware 2.1.0.
+- **Firmware:** 2.1.0 or later. Mouse-mode feedback and the device info in the connect line both need it.
+- **Connection:** USB only. Bluetooth feedback is planned for firmware 4.0.0.
 - **Logs:** most results show up in **Window > Output Log**. Type `LogLightgun` in the search box to see
   only the plugin's messages. The full log is in `Saved/Logs/<YourProject>.log`.
 
@@ -24,10 +21,10 @@ Install the plugin first: see [Install in the README](../README.md#install).
 1. Open your project with the gun connected. The Output Log should show a line like:
 
    ```
-   LogLightgun: Lightgun connected: P1 3673:0100 (...), firmware 3.0.0, RP2350, gamepad, feedback yes
+   LogLightgun: Lightgun connected: P1 3673:0100 (...), firmware 2.1.0, RP2350, gamepad, feedback yes
    ```
 
-   Released firmware (2.1.0) doesn't report device info, so it shows `firmware unknown, USB` instead.
+   Firmware older than 2.1.0 doesn't report device info, so it shows `firmware unknown, USB` instead.
    Include this line in any report.
 
 2. In your character or player controller Blueprint, add the **Lightgun Trigger** key event, and connect
@@ -47,7 +44,7 @@ Play-in-Editor with the gun in Gamepad mode.
 - [ ] Gun connected over **USB** shows `Lightgun connected` in the log.
 - [ ] Unplug the gun during play: the log shows `Lightgun disconnected`, and nothing freezes or crashes.
 - [ ] Plug it back in: it reconnects within a couple of seconds, and input and recoil work again.
-- [ ] On `release-3.0` firmware, the connect line shows the firmware version, board, mode (`gamepad`) and
+- [ ] On firmware 2.1.0 or later, the connect line shows the firmware version, board, mode (`gamepad`) and
       `feedback yes`.
 - [ ] **On Lightgun Connected**, **On Lightgun Disconnected** and **On Lightgun Warning** fire on the
       Lightgun Subsystem.
@@ -86,11 +83,11 @@ Play-in-Editor with the gun in Gamepad mode.
 - [ ] Each gun is a separate player (P1 is player index 0, P2 is 1, and so on).
 - [ ] Feedback sent to one player index reaches only that gun.
 - [ ] Two guns set to the **same player number** log a warning.
-- [ ] On `release-3.0` firmware, no `reports player number` warning appears.
+- [ ] On firmware 2.1.0 or later, no `reports player number` warning appears.
 
 ### Mouse mode
 
-On firmware with mouse-mode feedback (`release-3.0`):
+On firmware 2.1.0 or later, which adds mouse-mode feedback:
 
 - [ ] The connect line shows `mouse, feedback yes`, with no mouse-mode warning.
 - [ ] While play runs, the gun still moves the cursor and clicks as the system mouse.
@@ -155,8 +152,7 @@ Send us the first error from the build output, with your Unreal and Visual Studi
 
 **"found in mouse mode without feedback support"**
 Windows reserves the gun's mouse and keyboard for itself, so a game can only send feedback through the extra
-channel the firmware's `release-3.0` branch adds. Either use that firmware, or change the gun to Gamepad mode
-in Blamcon ARC.
+channel added in firmware 2.1.0. Either update the firmware, or change the gun to Gamepad mode in Blamcon ARC.
 
 **"can't take force feedback in its current mode or connection"**
 The gun says its firmware can't take feedback this way. Input still works. Connect by USB, and report it
@@ -187,7 +183,7 @@ If the log shows `write failed`, `write stalled` or `input read failed`, unplug 
 ## Known limitations
 
 - Windows only. macOS and Linux are planned.
-- USB only. Bluetooth needs a future firmware release.
+- USB only. Bluetooth feedback needs firmware 4.0.0.
 - Up to four guns (player numbers 1–4).
 - In mouse mode, input comes from the system mouse: guns in mouse mode share one cursor, so aim is
   effectively single-player. Use Gamepad mode for multiplayer.

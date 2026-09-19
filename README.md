@@ -4,6 +4,7 @@ Blamcon lightgun support for Unreal Engine. Guns aim and shoot through Enhanced 
 controller, and your game can drive their force feedback: recoil, rumble, the RGB LED and the ammo display.
 
 Companion to the Unity package [com.blamcon.lightguns](https://github.com/Props3D/UnityLightguns).
+Guns and firmware: [blamcon.com](https://blamcon.com).
 
 > **Early preview.** The plugin builds on Unreal Engine 5.6 and the basics work on hardware over USB (one
 > gun, gamepad and mouse mode), including buttons and rumble. Several guns, the ammo display and aim haven't
@@ -36,9 +37,9 @@ Companion to the Unity package [com.blamcon.lightguns](https://github.com/Props3
 - A Blamcon lightgun on firmware 2.1.0 or later, connected by USB:
   - **Gamepad mode:** aim, buttons and force feedback through the plugin. Needed for gun aim with
     several players.
-  - **Mouse mode:** force feedback only needs firmware with mouse-mode feedback (the firmware's
-    `release-3.0` branch, not yet released). The gun aims and fires as the system mouse.
-  - Bluetooth support is not available in any current releases. This is planned for a future firmware release.
+  - **Mouse mode:** force feedback needs firmware 2.1.0 or later, which adds the vendor-defined
+    collection. The gun aims and fires as the system mouse.
+  - Bluetooth is not supported yet. Feedback over Bluetooth is planned for firmware 4.0.0.
 
 ## Install
 
@@ -56,8 +57,9 @@ Companion to the Unity package [com.blamcon.lightguns](https://github.com/Props3
 ## Quick start
 
 1. Plug in a gun in Gamepad mode. **Window > Output Log** should show a line like
-   `LogLightgun: Lightgun connected: P1 3673:0100 ...`. Released firmware shows `firmware unknown`; builds
-   with the device info reports show details such as `firmware 3.0.0, RP2350, gamepad, feedback yes`.
+   `LogLightgun: Lightgun connected: P1 3673:0100 ...`. Firmware 2.1.0 and later answers the device info
+   report, so the line shows details such as `firmware 2.1.0, RP2350, gamepad, feedback yes`. Older firmware
+   shows `firmware unknown`.
 2. In your character or player controller Blueprint, add the **Lightgun Trigger** key event, and connect
    **Pressed** to **Play Recoil** with Player Index 0.
 3. Press **Play** and pull the trigger: the gun recoils.
@@ -89,6 +91,50 @@ The gun ignores ammo counts until the game takes ammo control, and taking it cle
 with the starting count in one call: **Take Feedback Control** with **Ammo** ticked and **Starting Ammo** set.
 After that, call **Set Ammo Count** whenever the count changes.
 
+### Feedback as data
+
+**Play Lightgun Feedback** sends a whole `FLightgunFeedback` struct as one report: recoil, rumble, LED and
+ammo together. Each component has a switch, and a component whose switch is off is left alone — **Recoil**
+off means "don't touch the solenoid", while **Recoil** on with 0 pulses stops it.
+
+| Component | Fields |
+|---|---|
+| Recoil | Pulses, On Ms (15-200), Off Ms (45-200) |
+| Rumble | Pulses, On Ms (100-2400), Off Ms (100-2400) |
+| LED | Color, Flashes (0 holds the colour), Lit Ms, Dark Ms (both 20-5000) |
+| Ammo | Remaining |
+
+A timing field of 0 uses the gun's own setting, so most weapons only fill in a pulse count and a colour.
+Rumble strength isn't here: it's a setting on the gun, not something a game can change.
+
+Two reasons to prefer it over the single-purpose nodes:
+
+- **It happens together.** Separate calls in one frame are usually merged into one report, but only if the
+  writer hasn't sent the earlier one yet, so the result depends on timing. In one struct there is only one
+  LED setting, so a colour and a flash can't race.
+- **It's data.** Give each weapon its own struct, tune it in the details panel, and play it when the weapon
+  fires, instead of wiring the same three nodes into every weapon.
+
+The single-purpose nodes still work, and stay the simplest thing for "recoil when the gun fires".
+
+To let a designer tune each weapon without touching code, make the struct an asset: **Blueprint Class >
+Data Asset > Primary Data Asset**, add a variable of type **Lightgun Feedback**, and each child asset is a
+profile — `DA_PistolFire`, `DA_ShotgunFire`. A weapon holds a reference to one and passes its struct to
+**Play Lightgun Feedback**. No plugin code is involved, so profiles stay yours when the plugin updates.
+
+A stored profile holds the part of a weapon's feel that never changes: recoil pulses and timing, the flash
+colour. The part that depends on game state is set when the weapon fires. The ammo count differs on every
+shot, and a colour might follow health or team. So on each shot, copy the profile into a local variable,
+set the changing fields on the copy (**Set Members in Lightgun Feedback**: **Ammo** on and **Ammo
+Remaining**), and play the copy. The struct is a plain value, so copying is cheap and the stored profile is
+never changed.
+
+Recoil, rumble and the LED need no setup: the plugin takes control of them for the whole game session. The
+ammo display is the exception. The gun ignores ammo counts until the game takes ammo control, and taking it
+zeroes the display, so call **Take Feedback Control** once when the weapon or level starts, with **Ammo**
+ticked and **Starting Ammo** set. After that, every struct with **Ammo** on updates the display. The struct
+has no control fields of its own: control is taken once per session, while feedback is played per shot.
+
 ### Reading a gun's state
 
 **Get Lightgun Info** describes one player's gun, for a settings screen or to check what it can do:
@@ -99,9 +145,9 @@ After that, call **Set Ammo Count** whenever the count changes.
 | Player Index | 0-based, as passed to the other nodes |
 | Has Gun Input | Sends aim and buttons. False in mouse mode, where the gun is the system mouse |
 | Feedback Available | Takes force feedback in its current mode and connection |
-| Details Known | The gun reported its own details. Firmware before the device info reports says nothing |
-| Firmware Version | "3.0.0", or empty when not reported |
-| Firmware Version Number | 30000 for 3.0.0, so versions compare with >= |
+| Details Known | The gun reported its own details. Firmware before 2.1.0 says nothing |
+| Firmware Version | "2.1.0", or empty when not reported |
+| Firmware Version Number | 20100 for 2.1.0, so versions compare with >= |
 | Board | RP2040 or RP2350 |
 | Mode | Mouse or Gamepad |
 | Connection | USB or Bluetooth |
@@ -237,6 +283,13 @@ player's gun (large motors as rumble, small motors as recoil).
   how to report problems
 - [CONTRIBUTING.md](CONTRIBUTING.md): repository layout and developer tests
 - [docs/PLUGIN_SPEC.md](docs/PLUGIN_SPEC.md): design and roadmap
+
+## Crediting Blamcon
+
+You're welcome to link [blamcon.com](https://blamcon.com) from your game, and players looking for a gun
+have somewhere to go. If you'd like a logo at a particular size or format, ask on the
+[issues page](https://github.com/Props3D/UnrealLightguns/issues) — they aren't shipped with the plugin, so
+nobody downloads artwork they don't need.
 
 ## License
 

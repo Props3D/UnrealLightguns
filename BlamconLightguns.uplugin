@@ -6,7 +6,7 @@
 	"Description": "Blamcon lightgun support: aiming, buttons and force feedback (recoil, rumble, RGB LED, ammo display) over HID. Includes hidapi, used under its BSD-3-Clause license option.",
 	"Category": "Input Devices",
 	"CreatedBy": "Props3D",
-	"CreatedByURL": "https://github.com/Props3D",
+	"CreatedByURL": "https://blamcon.com",
 	"DocsURL": "https://github.com/Props3D/UnrealLightguns",
 	"MarketplaceURL": "",
 	"SupportURL": "https://github.com/Props3D/UnrealLightguns/issues",

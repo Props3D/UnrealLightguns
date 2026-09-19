@@ -78,9 +78,8 @@ must not mean renaming the public API.
 
 The plugin learns about each gun from the gun itself, over HID and without serial commands: which
 firmware and board it runs, how it is connected, and whether it can take force feedback. Two HID
-feature reports carry this, read with `hid_get_feature_report()` on the already-open handle. It is
-implemented on the firmware's `release-3.0` branch but not yet in a release; the firmware work is listed
-at the end of this section.
+feature reports carry this, read with `hid_get_feature_report()` on the already-open handle. Firmware
+**2.1.0** ships them over USB; the firmware work is listed at the end of this section.
 
 This is the **minimal first version**. Every field is there because the plugin acts on it or it answers
 a support question. Both reports are built to grow (see *Extending the reports*).
@@ -100,7 +99,8 @@ Both reports start with the same 5 bytes:
 `c5d859d` (#225, 2026-09-11) its handler was a TODO. It returned the requested length without writing
 the buffer, so older firmware answers with stale bytes from TinyUSB's control buffer, which output
 reports also use. A lone version byte of `1` is indistinguishable from leftover data. The one-byte form
-(`BLAMCON_HID_PROTOCOL_VERSION = 1`) is already replaced on `release-3.0`, before it reaches a release.
+(`BLAMCON_HID_PROTOCOL_VERSION = 1`) was replaced before it reached a release: 2.1.0 ships protocol
+version 2.
 
 #### Report `0x50`: device info
 
@@ -109,7 +109,7 @@ Fixed while the gun stays connected. Read once per connection. 13 bytes includin
 
 | Byte | Field | Values |
 |---|---|---|
-| 5–8 | Firmware version | `uint32` little-endian, `major × 10000 + minor × 100 + patch`: 3.0.0 = `30000`, 3.1.12 = `30112` |
+| 5–8 | Firmware version | `uint32` little-endian, `major × 10000 + minor × 100 + patch`: 2.1.0 = `20100`, 3.1.12 = `30112` |
 | 9 | Board | `0` unknown, `1` RP2040, `2` RP2350 |
 | 10 | Mode | `0` mouse, `1` gamepad, `2` Bluetooth mouse, `3` Bluetooth gamepad (firmware `*_EMULATION_MODE`) |
 | 11 | Feedback over HID output | `1` if this gun, in its current mode and on its current connection, processes output report `0x10`; otherwise `0` |
@@ -140,7 +140,7 @@ it into `FLightgunDeviceId::Info`.
 
 | Result | Plugin does |
 |---|---|
-| Valid `0x50` | Logs it in the connect line, e.g. `Lightgun connected: P1 firmware 3.0.0, RP2350, Bluetooth gamepad, feedback yes` |
+| Valid `0x50` | Logs it in the connect line, e.g. `Lightgun connected: P1 firmware 2.1.0, RP2350, gamepad, feedback yes` |
 | Feedback over HID output = `0` | Warns once ("this gun can't take force feedback in its current mode or connection; update firmware or use USB"), sends no feedback, input keeps working |
 | Player number differs from the PID's player | Warns once with both values. The PID still decides the player index. This is the hardware check for the Bluetooth / Blamcon Buddy open question |
 | Valid `0x51` with control bits set on connect | Logs which components another host holds. **Never releases them:** the plugin only releases control it took itself in the running process, and can't tell another program's control (a game, Blamcon ARC, a second Unreal process) from a crashed one's. After a crash the user reconnects the gun. A game session still takes its own components as usual |
@@ -156,13 +156,14 @@ Separately from the reports, the firmware version also goes in the device versio
 from enumeration (`hid_device_info::release_number`) with no extra I/O, before the gun is opened. It is
 only logged, never used to decide behaviour.
 
-* USB: `bcdDevice`, via `TinyUSBDevice.setDeviceVersion()`. Set on `release-3.0`; released builds
+* USB: `bcdDevice`, via `TinyUSBDevice.setDeviceVersion()`. Set from firmware 2.1.0; earlier builds
   report TinyUSB's default `0x0100`.
 * Bluetooth Classic: the version field of the Device ID SDP record (`device_id_create_sdp_record` in
-  `easybt.cpp`). Set on `release-3.0`; released builds send `1`. hidapi on macOS returns this field
-  (`0x0001` seen on hardware with a pre-change build). **Windows doesn't pass it through:** with
-  `release-3.0` over Bluetooth, hidapi on Windows 11 returned `release_number` `0x0000` and an empty
-  product string. Over Bluetooth on Windows, only report `0x50` identifies the build.
+  `easybt.cpp`). Set in the same change; earlier builds send `1`. hidapi on macOS returns this field
+  (`0x0001` seen on hardware with a pre-change build). **Windows doesn't pass it through:** over
+  Bluetooth, hidapi on Windows 11 returned `release_number` `0x0000` and an empty product string. Over
+  Bluetooth on Windows, only report `0x50` identifies the build. (Bluetooth feedback itself is firmware
+  4.0.0 work; these notes come from development builds.)
 * Encoding is USB BCD `0xJJMN` (`0x0301` = 3.0.1), so minor and patch are one digit each; report `0x50`
   carries the full version.
 * BLE is not a supported transport and is not planned.
@@ -189,8 +190,8 @@ only logged, never used to decide behaviour.
 
 #### Firmware work (in `blamcon-lightguns`, not this repo)
 
-Status (2026-09-14): items 1–3 and 5 are done on `release-3.0`, not yet in a release. Item 4 holds as
-long as that branch ships as a whole.
+Status (2026-09-24): items 1–3 and 5 shipped together in firmware **2.1.0** over USB, so item 4 is
+satisfied. The Bluetooth halves of the same features wait for firmware 4.0.0.
 
 1. Replace the one-byte `0x50` answer with the device info report, and change its descriptor entry to
    `HID_REPORT_COUNT(12)` in `TUD_HID_REPORT_DESC_ABS_GAMEPADV2`.
@@ -206,9 +207,9 @@ long as that branch ships as a whole.
 ### 4.2 Mouse mode: vendor-defined collection
 
 In mouse mode the gun's descriptor has a mouse and a keyboard collection, which Windows opens
-exclusively (constraint 1). Firmware on `release-3.0` (not yet in a release) adds a third top-level
-collection to the mouse-mode descriptor, over USB and Bluetooth Classic. `-DMOUSE_VENDOR_COLLECTION=0`
-builds the old descriptor. The host opens that collection for feedback and device
+exclusively (constraint 1). Firmware 2.1.0 adds a third top-level collection to the USB mouse-mode
+descriptor; the Bluetooth mouse descriptor gets it with the 4.0.0 Bluetooth work.
+`-DMOUSE_VENDOR_COLLECTION=0` builds the old descriptor. The host opens that collection for feedback and device
 info, while the OS keeps using the gun as a mouse.
 
 | Collection | Usage page / usage | Reports |
@@ -243,7 +244,8 @@ info, while the OS keeps using the gun as a mouse.
   `0x51` are declared inside the vendor collection.
 * Bluetooth HID devices go through the same class driver, so the split is the same over Bluetooth.
 
-**Tested on Windows 11** (2026-09-14, RP2350 gun on `release-3.0`, hidapi 0.14 via the Python probe).
+**Tested on Windows 11** (2026-09-14, RP2350 gun on a `release-3.0` development build with the same USB
+descriptor that shipped in 2.1.0, hidapi 0.14 via the Python probe).
 * **USB:**
   * The gun enumerated as three collections on interface 2: `MI_02&Col01` mouse, `Col02` keyboard,
     `Col03` vendor.
@@ -407,7 +409,15 @@ TakeFeedbackControl(Target, Recoil, Rumble, Led, Ammo, StartingAmmo = 0)
 ReleaseFeedbackControl(Target, ...)
 IsLightgunConnected(Target)         GetConnectedLightguns()
 GetLightgunInfo(Target)             GetPluginVersion()
+PlayLightgunFeedback(Target, Feedback)
 ```
+
+`PlayLightgunFeedback` takes `FLightgunFeedback`, a Blueprint struct with a switch per component (recoil,
+rumble, LED, ammo) and that component's fields. It builds one report and sends it once, so everything in
+the struct reaches the gun together: separate calls only merge when the writer hasn't sent the earlier
+report yet, which leaves the result to thread timing. A component whose switch is off is untouched, which
+is distinct from setting it to zero. It also lets a game store feedback per weapon rather than wiring the
+same calls into each one.
 
 `GetLightgunInfo` returns `FLightgunInfo`, a Blueprint struct describing the device: connected, player
 index, gun input, feedback available, firmware version (string and comparable number), board, mode,
@@ -489,18 +499,18 @@ udev rule: `KERNEL=="hidraw*", ATTRS{idVendor}=="3673", ATTRS{idProduct}=="010[0
 
 ## 10. Acceptance tests
 
-* Recoil, rumble, LED and ammo each fire on hardware, over USB **and** Bluetooth.
+* Recoil, rumble, LED and ammo each fire on hardware over USB (Bluetooth once firmware 4.0.0 ships it).
 * Two guns: correct player index, feedback goes to the right gun, aim is independent.
 * Aim reaches the screen edges (0 and 1 on both axes) and has no deadzone near centre.
 * Gun in mouse mode on firmware without the vendor collection → clear actionable log line, no crash,
   no silent failure.
-* Gun in mouse mode with the vendor collection (§4.2), over USB **and** Bluetooth → no warning; the
-  connect line shows mouse mode; recoil, rumble, LED and ammo fire; the gun still aims and fires as the
-  system mouse while the plugin holds the collection open.
+* Gun in mouse mode with the vendor collection (§4.2), over USB → no warning; the connect line shows
+  mouse mode; recoil, rumble, LED and ammo fire; the gun still aims and fires as the system mouse while
+  the plugin holds the collection open. Repeat over Bluetooth once firmware 4.0.0 ships it.
 * Unplug mid-session → disconnect event, no hang, no leaked thread; replug re-acquires.
 * PIE stop and app exit both release feedback control (verify recoil returns to firing on trigger).
 * Mouse-only play works end to end with the shipped mapping context.
-* Device info and live state (once the section 4.1 firmware changes exist): the connect log shows
+* Device info and live state (firmware 2.1.0 or later): the connect log shows
   firmware version, board, mode and feedback availability; a gun reporting feedback unavailable gets a
   warning and no feedback while input keeps working; a gun already under another host's control on
   connect is logged and not released; a gun whose `0x50` answer has no signature is treated as Legacy and
@@ -516,7 +526,7 @@ Decided (2026-09-13):
   RawInput regression.
 * **Firmware info without serial commands:** signed HID feature reports for device info (`0x50`) and
   live state (`0x51`), plus the device version at enumeration. Minimal first version in section 4.1;
-  the firmware changes listed there are on `release-3.0`, not yet in a release.
+  the firmware changes listed there shipped in 2.1.0.
 * **Mouse-mode feedback over HID** (2026-09-14): the vendor-defined collection (§4.2) works on Windows
   over USB and Bluetooth with both hidapi and Unity. So mouse-mode Blamcon guns get feedback
   over HID, the §4 warning is only for older firmware, and milestone 3 is about other brands. To
@@ -536,6 +546,6 @@ Still open:
   guns arrive over BT rather than USB? Needs hardware confirmation.
 * **Does UE's bundled SDL2 export `SDL_hid_*`?** If so, Linux/macOS could skip vendoring hidapi.
   Only relevant once the deferred platform milestones start. ~30 minutes to check.
-* **Which firmware build is 3.0.0?** There is no `3.0.0` tag in `blamcon-lightguns`, so it is unclear
-  whether shipped 3.0.0 includes `c5d859d` (the one-byte `0x50` answer) or the older TODO handler. The
-  plugin's Legacy classification covers both, but the answer decides how urgent firmware item 4 is.
+* ~~**Which firmware build is 3.0.0?**~~ **Resolved 2026-09-24:** the feature reports shipped in
+  **2.1.0** with protocol version 2, and the one-byte `0x50` answer never reached a release. Firmware
+  older than 2.1.0 is Legacy to the plugin. 3.0 is a separate, unreleased firmware line.
