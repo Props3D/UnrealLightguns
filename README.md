@@ -26,6 +26,8 @@ Companion to the Unity package [com.blamcon.lightguns](https://github.com/Props3
   system mouse and still gets force feedback, on firmware that supports it.
 - **Clear diagnostics:** logs each gun's firmware, board, mode and connection, and tells you when a gun
   can't take feedback or two guns share a player number.
+- **Hardware state in Blueprint:** Get Lightgun Info reports a gun's mode, firmware and whether it takes
+  feedback, for settings screens; Get Plugin Version reports the plugin's own version.
 
 ## Requirements
 
@@ -77,14 +79,39 @@ To aim with the mouse through the same action, add a **Mouse XY 2D-Axis** mappin
 while their gun is connected in Gamepad mode. A gun in mouse mode *is* the mouse, so mouse aim stays on;
 all guns in mouse mode share one cursor.
 
-`Scripts/create_sample_input.py` can generate a ready-made Input Mapping Context with aim and fire already
-set up for gun and mouse. See [docs/TESTING.md](docs/TESTING.md#optional-sample-input-mapping-context).
+The plugin ships a ready-made Input Mapping Context with aim, fire and reload already set up for gun and
+mouse, in **Plugins > Blamcon Lightguns Content > Input**. See
+[docs/TESTING.md](docs/TESTING.md#sample-input-mapping-context).
 
 ### Ammo display
 
 The gun ignores ammo counts until the game takes ammo control, and taking it clears the display. Take it
 with the starting count in one call: **Take Feedback Control** with **Ammo** ticked and **Starting Ammo** set.
 After that, call **Set Ammo Count** whenever the count changes.
+
+### Reading a gun's state
+
+**Get Lightgun Info** describes one player's gun, for a settings screen or to check what it can do:
+
+| Field | Meaning |
+|---|---|
+| Connected | A gun has this player index. Every other field is default when false |
+| Player Index | 0-based, as passed to the other nodes |
+| Has Gun Input | Sends aim and buttons. False in mouse mode, where the gun is the system mouse |
+| Feedback Available | Takes force feedback in its current mode and connection |
+| Details Known | The gun reported its own details. Firmware before the device info reports says nothing |
+| Firmware Version | "3.0.0", or empty when not reported |
+| Firmware Version Number | 30000 for 3.0.0, so versions compare with >= |
+| Board | RP2040 or RP2350 |
+| Mode | Mouse or Gamepad |
+| Connection | USB or Bluetooth |
+| Player Number On Gun | 1-4, set on the gun itself. Player Index is this minus one |
+| Product Name | The gun's USB product name |
+
+The struct holds device facts only. Game preferences, such as the player's chosen LED colour or whether
+they want rumble, belong in your own settings alongside the rest of your options.
+
+**Get Plugin Version** returns the plugin's version as a string, read from the plugin descriptor.
 
 ## Using the plugin from C++
 

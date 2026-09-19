@@ -2,6 +2,8 @@
 
 #include "LightgunLibrary.h"
 
+#include "Interfaces/IPluginManager.h"
+#include "LightgunDeviceInfoReport.h"
 #include "LightgunInputDevice.h"
 #include "LightgunReport.h"
 #include "LightgunsModule.h"
@@ -108,4 +110,80 @@ TArray<int32> ULightgunLibrary::GetConnectedLightguns()
 {
 	const FLightgunInputDevice* const Device = LightgunLibrary::GetDevice();
 	return Device ? Device->GetConnectedPlayers() : TArray<int32>();
+}
+
+namespace LightgunLibrary
+{
+	ELightgunBoard ToBoard(uint8 Board)
+	{
+		switch (Board)
+		{
+		case LightgunDeviceInfoReport::BoardRP2040: return ELightgunBoard::RP2040;
+		case LightgunDeviceInfoReport::BoardRP2350: return ELightgunBoard::RP2350;
+		default: return ELightgunBoard::Unknown;
+		}
+	}
+
+	/** The Bluetooth modes report as their wired equivalent: Connection says how the gun is attached. */
+	ELightgunMode ToMode(uint8 Mode)
+	{
+		switch (Mode)
+		{
+		case LightgunDeviceInfoReport::ModeMouse:
+		case LightgunDeviceInfoReport::ModeBluetoothMouse:
+			return ELightgunMode::Mouse;
+		case LightgunDeviceInfoReport::ModeGamepad:
+		case LightgunDeviceInfoReport::ModeBluetoothGamepad:
+			return ELightgunMode::Gamepad;
+		default:
+			return ELightgunMode::Unknown;
+		}
+	}
+
+	ELightgunConnection ToConnection(ELightgunTransport Transport)
+	{
+		switch (Transport)
+		{
+		case ELightgunTransport::Usb: return ELightgunConnection::Usb;
+		case ELightgunTransport::Bluetooth: return ELightgunConnection::Bluetooth;
+		default: return ELightgunConnection::Unknown;
+		}
+	}
+}
+
+FLightgunInfo ULightgunLibrary::GetLightgunInfo(int32 PlayerIndex)
+{
+	FLightgunInfo Result;
+
+	const FLightgunInputDevice* const Device = LightgunLibrary::GetDevice();
+	const FLightgunDeviceId* const Id = Device ? Device->FindDeviceId(PlayerIndex) : nullptr;
+	if (!Id)
+	{
+		return Result;
+	}
+
+	const FLightgunDeviceInfo& Info = Id->Info;
+	Result.bConnected = true;
+	Result.PlayerIndex = Id->PlayerIndex;
+	Result.bHasGunInput = Id->bHasGunInput;
+	// Legacy firmware can't say, and is given feedback anyway: report what the plugin will actually do.
+	Result.bFeedbackAvailable = !Info.bKnown || Info.bFeedbackAvailable;
+	Result.bDetailsKnown = Info.bKnown;
+	Result.FirmwareVersionNumber = static_cast<int32>(Info.FirmwareVersion);
+	if (Info.bKnown)
+	{
+		Result.FirmwareVersion = FString::Printf(TEXT("%u.%u.%u"), Info.GetMajor(), Info.GetMinor(), Info.GetPatch());
+	}
+	Result.Board = LightgunLibrary::ToBoard(Info.Board);
+	Result.Mode = LightgunLibrary::ToMode(Info.Mode);
+	Result.Connection = LightgunLibrary::ToConnection(Id->GetEffectiveTransport());
+	Result.PlayerNumberOnGun = Info.PlayerNumber;
+	Result.ProductName = Id->ProductName;
+	return Result;
+}
+
+FString ULightgunLibrary::GetPluginVersion()
+{
+	const TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("BlamconLightguns"));
+	return Plugin.IsValid() ? Plugin->GetDescriptor().VersionName : FString();
 }

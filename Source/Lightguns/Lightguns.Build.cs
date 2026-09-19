@@ -24,6 +24,8 @@ public class Lightguns : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
 			"LightgunCore",
+			// IPluginManager, for reporting the plugin's own version.
+			"Projects",
 			// FSlateApplication, for releasing feedback control when the application loses focus.
 			"Slate",
 			"SlateCore",

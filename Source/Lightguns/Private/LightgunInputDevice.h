@@ -65,6 +65,9 @@ public:
 	/** A gun for this player is connected and sends aim and buttons, i.e. isn't in mouse mode. */
 	bool HasGunInput(int32 PlayerIndex) const;
 
+	/** The connected gun for this player, or null. Valid until the gun is removed. */
+	const FLightgunDeviceId* FindDeviceId(int32 PlayerIndex) const;
+
 	/** The player index a lightgun input device id belongs to, connected or not, or INDEX_NONE. */
 	int32 GetPlayerIndex(FInputDeviceId InputDeviceId) const;
 

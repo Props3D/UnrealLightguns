@@ -406,7 +406,16 @@ SetAmmoCount(Target, Remaining)
 TakeFeedbackControl(Target, Recoil, Rumble, Led, Ammo, StartingAmmo = 0)
 ReleaseFeedbackControl(Target, ...)
 IsLightgunConnected(Target)         GetConnectedLightguns()
+GetLightgunInfo(Target)             GetPluginVersion()
 ```
+
+`GetLightgunInfo` returns `FLightgunInfo`, a Blueprint struct describing the device: connected, player
+index, gun input, feedback available, firmware version (string and comparable number), board, mode,
+connection, the player number set on the gun, and the USB product name. `Mode` is Mouse or Gamepad only:
+the firmware's Bluetooth modes report as their wired equivalent, and `Connection` says how the gun is
+attached, so Bluetooth stays out of the Blueprint surface while it is development only. It carries device facts only;
+game preferences such as the chosen LED colour belong in the game's own settings. `GetPluginVersion`
+reads `VersionName` from the plugin descriptor, so there is no second copy of the version to maintain.
 
 `ULightgunSubsystem` broadcasts `OnLightgunConnected` / `OnLightgunDisconnected` (relayed from the
 engine's device mapper, which Blueprint can't bind to) and `OnLightgunWarning` (e.g. mouse mode).

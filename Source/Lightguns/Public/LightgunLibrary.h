@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "LightgunInfo.h"
 
 #include "LightgunLibrary.generated.h"
 
@@ -72,4 +73,16 @@ public:
 	/** 0-based player indices of the connected guns, in order. */
 	UFUNCTION(BlueprintPure, Category = "Blamcon|Lightguns")
 	static TArray<int32> GetConnectedLightguns();
+
+	/**
+	 * What the plugin knows about one player's gun: mode, firmware, whether it takes feedback. Use it to
+	 * drive a settings screen, or to check a gun can do something before offering it. Connected is false
+	 * when no gun has that player index.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Blamcon|Lightguns")
+	static FLightgunInfo GetLightgunInfo(int32 PlayerIndex = 0);
+
+	/** The plugin's version, as "2.0.0". Read from the plugin descriptor, so it matches the release. */
+	UFUNCTION(BlueprintPure, Category = "Blamcon|Lightguns")
+	static FString GetPluginVersion();
 };

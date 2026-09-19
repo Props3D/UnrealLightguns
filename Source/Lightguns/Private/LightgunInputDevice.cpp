@@ -163,6 +163,12 @@ bool FLightgunInputDevice::HasGunInput(int32 PlayerIndex) const
 	return Guns.ContainsByPredicate([PlayerIndex](const FGun& Gun) { return Gun.Id.PlayerIndex == PlayerIndex && Gun.Id.bHasGunInput; });
 }
 
+const FLightgunDeviceId* FLightgunInputDevice::FindDeviceId(int32 PlayerIndex) const
+{
+	const FGun* const Gun = Guns.FindByPredicate([PlayerIndex](const FGun& Candidate) { return Candidate.Id.PlayerIndex == PlayerIndex; });
+	return Gun ? &Gun->Id : nullptr;
+}
+
 bool FLightgunInputDevice::IsGamepadAttached() const
 {
 	// Mouse-mode guns aren't gamepads to the engine: their input arrives as the mouse.
