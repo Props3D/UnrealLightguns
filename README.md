@@ -1,0 +1,327 @@
+# Blamcon Lightguns for Unreal
+
+Blamcon lightgun support for Unreal Engine. Guns aim and shoot through Enhanced Input like any other
+controller, and your game can drive their force feedback: recoil, rumble, the RGB LED and the ammo display.
+
+Companion to the Unity package [com.blamcon.lightguns](https://github.com/Props3D/UnityLightguns).
+Guns and firmware: [blamcon.com](https://blamcon.com).
+
+> **Early preview.** The plugin builds on Unreal Engine 5.6 and the basics work on hardware over USB (one
+> gun, gamepad and mouse mode), including buttons and rumble. Several guns, the ammo display and aim haven't
+> been tested yet, so expect rough edges and please report them. Guns connect by USB only for now. [docs/TESTING.md](docs/TESTING.md) explains what to try and
+> how to report.
+
+## Features
+
+- **Input:** Lightgun Aim (absolute, 0–1), Trigger, A, B, Y, Start, Select and D-pad keys. Each gun is
+  its own player, up to four.
+- **Force feedback from Blueprint or C++:** Play Recoil, Play Rumble, Set Led Color, Flash Led, Set Ammo
+  Count.
+- **Works with Unreal's own features:** Force Feedback Effects drive rumble and recoil, and the Input
+  Device Subsystem's light colour drives the LED.
+- **Safe by default:** the game takes control of recoil, rumble and LED while it runs, and hands them back
+  to the gun when play stops or the window loses focus.
+- **Mouse parity:** aim and fire with a mouse through the same Input Actions, so you can develop without a
+  gun.
+- **Gamepad or mouse mode:** in Gamepad mode the gun is its own controller. In mouse mode it stays the
+  system mouse and still gets force feedback, on firmware that supports it.
+- **Clear diagnostics:** logs each gun's firmware, board, mode and connection, and tells you when a gun
+  can't take feedback or two guns share a player number.
+- **Hardware state in Blueprint:** Get Lightgun Info reports a gun's mode, firmware and whether it takes
+  feedback, for settings screens; Get Plugin Version reports the plugin's own version.
+
+## Requirements
+
+- Unreal Engine 5.4 or later, on Windows 10 or 11 (Windows only for now)
+- Visual Studio 2022 with the **Game development with C++** workload (the plugin ships as source)
+- A Blamcon lightgun on firmware 2.2.0 or later, connected by USB:
+  - **Gamepad mode:** aim, buttons and force feedback through the plugin. Needed for gun aim with
+    several players.
+  - **Mouse mode:** force feedback goes through the vendor-defined collection, which firmware 2.1.0
+    added. The gun aims and fires as the system mouse.
+  - Bluetooth is not supported yet. Feedback over Bluetooth is planned for firmware 4.0.0.
+
+## Install
+
+1. Clone the plugin into your project's `Plugins` folder. The folder must be named `BlamconLightguns`:
+
+   ```bash
+   git clone https://github.com/Props3D/UnrealLightguns.git Plugins/BlamconLightguns
+   ```
+
+2. If your project is Blueprint-only, add any C++ class first (**Tools > New C++ Class**) so Unreal can
+   build the plugin.
+3. Open the project. When Unreal offers to rebuild the missing modules, choose **Yes**.
+4. Check **Edit > Plugins > Blamcon Lightguns for Unreal** is enabled, and restart if prompted.
+
+## Upgrading
+
+### 2.1.0 — `ULightgunSubsystem` is now `UBlamconLightgunSubsystem`
+
+The subsystem's class and header were renamed so the plugin can be installed next to other lightgun
+plugins. [LightgunLab](https://github.com/del1verance/lightgunlab) also declares a `ULightgunSubsystem`
+in a `LightgunSubsystem.h`, and Unreal allows neither two headers with the same name nor two reflected
+types with the same name in one project, so a project with both failed to build.
+
+From C++, change the include and the type:
+
+```cpp
+#include "BlamconLightgunSubsystem.h"
+
+UBlamconLightgunSubsystem* Lightguns = GetGameInstance()->GetSubsystem<UBlamconLightgunSubsystem>();
+```
+
+Blueprints are covered by the `CoreRedirect` in
+[Config/DefaultBlamconLightguns.ini](Config/DefaultBlamconLightguns.ini), so graphs saved against the
+old class keep resolving. If a Blueprint still reports a missing class after updating, add the same
+entry to your project's own `Config/DefaultEngine.ini`:
+
+```ini
+[CoreRedirects]
++ClassRedirects=(OldName="/Script/Lightguns.LightgunSubsystem",NewName="/Script/Lightguns.BlamconLightgunSubsystem")
+```
+
+Nothing else changed. `Lightgun_Trigger`, `Lightgun_Aim` and the other input keys keep their names, so
+Input Mapping Contexts built against them still work.
+
+## Quick start
+
+1. Plug in a gun in Gamepad mode. **Window > Output Log** should show a line like
+   `LogLightgun: Lightgun connected: P1 3673:0100 ...`. Firmware 2.1.0 and later answers the device info
+   report, so the line shows details such as `firmware 2.1.0, RP2350, gamepad, feedback yes`. Older firmware
+   shows `firmware unknown`.
+2. In your character or player controller Blueprint, add the **Lightgun Trigger** key event, and connect
+   **Pressed** to **Play Recoil** with Player Index 0.
+3. Press **Play** and pull the trigger: the gun recoils.
+4. Stop play and pull the trigger again: the gun recoils by itself, because control went back to the gun.
+
+Player Index is 0-based: player 1 is 0. Pass -1 to send to every connected gun.
+
+Force feedback nodes are in the **Blamcon > Lightguns** category, and the keys are grouped under
+**Blamcon Lightgun**. Connection and warning events are on the
+**Lightgun Subsystem** (Get Game Instance Subsystem).
+
+### Aiming with Enhanced Input
+
+Map **Lightgun Aim** to an Axis2D Input Action. Its value is where the gun points: X and Y from 0 to 1,
+with Y = 0 at the bottom of the screen. Multiply by the viewport size for screen coordinates.
+
+To aim with the mouse through the same action, add a **Mouse XY 2D-Axis** mapping to it, with the
+**Lightgun Mouse Aim** modifier and the **Lightgun Mouse Aim** trigger. Mouse aim switches off for a player
+while their gun is connected in Gamepad mode. A gun in mouse mode *is* the mouse, so mouse aim stays on;
+all guns in mouse mode share one cursor.
+
+The plugin ships a ready-made Input Mapping Context with aim, fire and reload already set up for gun and
+mouse, in **Plugins > Blamcon Lightguns Content > Input**. See
+[docs/TESTING.md](docs/TESTING.md#sample-input-mapping-context).
+
+### Ammo display
+
+The gun ignores ammo counts until the game takes ammo control, and taking it clears the display. Take it
+with the starting count in one call: **Take Feedback Control** with **Ammo** ticked and **Starting Ammo** set.
+After that, call **Set Ammo Count** whenever the count changes.
+
+### Feedback as data
+
+**Play Lightgun Feedback** sends a whole `FLightgunFeedback` struct as one report: recoil, rumble, LED and
+ammo together. Each component has a switch, and a component whose switch is off is left alone — **Recoil**
+off means "don't touch the solenoid", while **Recoil** on with 0 pulses stops it.
+
+| Component | Fields |
+|---|---|
+| Recoil | Pulses, On Ms (15-200), Off Ms (45-200) |
+| Rumble | Pulses, On Ms (100-2400), Off Ms (100-2400) |
+| LED | Color, Flashes (0 holds the colour), Lit Ms, Dark Ms (both 20-5000) |
+| Ammo | Remaining |
+
+A timing field of 0 uses the gun's own setting, so most weapons only fill in a pulse count and a colour.
+Rumble strength isn't here: it's a setting on the gun, not something a game can change.
+
+Two reasons to prefer it over the single-purpose nodes:
+
+- **It happens together.** Separate calls in one frame are usually merged into one report, but only if the
+  writer hasn't sent the earlier one yet, so the result depends on timing. In one struct there is only one
+  LED setting, so a colour and a flash can't race.
+- **It's data.** Give each weapon its own struct, tune it in the details panel, and play it when the weapon
+  fires, instead of wiring the same three nodes into every weapon.
+
+The single-purpose nodes still work, and stay the simplest thing for "recoil when the gun fires".
+
+To let a designer tune each weapon without touching code, make the struct an asset: **Blueprint Class >
+Data Asset > Primary Data Asset**, add a variable of type **Lightgun Feedback**, and each child asset is a
+profile — `DA_PistolFire`, `DA_ShotgunFire`. A weapon holds a reference to one and passes its struct to
+**Play Lightgun Feedback**. No plugin code is involved, so profiles stay yours when the plugin updates.
+
+A stored profile holds the part of a weapon's feel that never changes: recoil pulses and timing, the flash
+colour. The part that depends on game state is set when the weapon fires. The ammo count differs on every
+shot, and a colour might follow health or team. So on each shot, copy the profile into a local variable,
+set the changing fields on the copy (**Set Members in Lightgun Feedback**: **Ammo** on and **Ammo
+Remaining**), and play the copy. The struct is a plain value, so copying is cheap and the stored profile is
+never changed.
+
+Recoil, rumble and the LED need no setup: the plugin takes control of them for the whole game session. The
+ammo display is the exception. The gun ignores ammo counts until the game takes ammo control, and taking it
+zeroes the display, so call **Take Feedback Control** once when the weapon or level starts, with **Ammo**
+ticked and **Starting Ammo** set. After that, every struct with **Ammo** on updates the display. The struct
+has no control fields of its own: control is taken once per session, while feedback is played per shot.
+
+### Reading a gun's state
+
+**Get Lightgun Info** describes one player's gun, for a settings screen or to check what it can do:
+
+| Field | Meaning |
+|---|---|
+| Connected | A gun has this player index. Every other field is default when false |
+| Player Index | 0-based, as passed to the other nodes |
+| Has Gun Input | Sends aim and buttons. False in mouse mode, where the gun is the system mouse |
+| Feedback Available | Takes force feedback in its current mode and connection |
+| Details Known | The gun reported its own details. Firmware before 2.1.0 says nothing. The model arrived later, so 2.1.0 fills everything here but the two model fields |
+| Firmware Version | "2.1.0", or empty when not reported |
+| Firmware Version Number | 20100 for 2.1.0, so versions compare with >= |
+| Board | RP2040 or RP2350 |
+| Mode | Mouse or Gamepad |
+| Connection | USB or Bluetooth |
+| Player Number On Gun | 1-4, set on the gun itself. Player Index is this minus one |
+| Model Name | The model its owner chose in ARC, e.g. "Ace of Spades". Empty when none is set, or on firmware before 2.2.1 / 3.0.0 |
+| Model Number | The raw model value: non-zero with an empty Model Name is a model newer than this plugin, worth showing as a number |
+| Product Name | The gun's USB product name |
+
+The struct holds device facts only. Game preferences, such as the player's chosen LED colour or whether
+they want rumble, belong in your own settings alongside the rest of your options.
+
+**Get Plugin Version** returns the plugin's version as a string, read from the plugin descriptor.
+
+## Using the plugin from C++
+
+`BlamconLightguns` is the plugin's name, not a module. The module to depend on is `Lightguns`. In your
+game's `.Build.cs`:
+
+```csharp
+PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "Lightguns" });
+```
+
+Keep one copy of the plugin, in `YourProject/Plugins/BlamconLightguns`. If your project is Blueprint-only,
+add any C++ class first (**Tools > New C++ Class**), which creates the `Source` folder and the `.Build.cs`.
+After adding the dependency, close the editor, delete the project's `Binaries` and `Intermediate` folders,
+regenerate the Visual Studio project files (right-click the `.uproject` > **Show more options**), and build
+the **Development Editor** configuration with the editor closed.
+
+Every Blueprint node is a static function on `ULightgunLibrary`, with the same parameters:
+
+```cpp
+#include "LightgunLibrary.h"
+
+// When the weapon fires
+ULightgunLibrary::PlayRecoil(PlayerIndex);
+ULightgunLibrary::FlashLed(PlayerIndex, FLinearColor::Red, 3);
+```
+
+Recoil, rumble and the LED are already under the game's control while a game instance exists, so nothing
+needs to be taken first. The ammo display is the exception: it stays with the gun until the game asks for
+it, and taking it zeroes the display, so send the starting count in the same call:
+
+```cpp
+ULightgunLibrary::TakeFeedbackControl(PlayerIndex, false, false, false, true, 12);
+ULightgunLibrary::SetAmmoCount(PlayerIndex, Ammo);
+```
+
+The gun's keys are on `FLightgunKeys`. Bind them on the pawn's input component, which is where the
+equivalent Blueprint key event lives:
+
+```cpp
+#include "LightgunKeys.h"
+
+void AMyCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+{
+	Super::SetupPlayerInputComponent(PlayerInputComponent);
+
+	PlayerInputComponent->BindKey(FLightgunKeys::Trigger, IE_Pressed, this, &AMyCharacter::Fire);
+	PlayerInputComponent->BindKey(FLightgunKeys::ButtonA, IE_Pressed, this, &AMyCharacter::Reload);
+}
+```
+
+The pawn is where the equivalent Blueprint key event binds, and it is what has been tested. For Enhanced Input, map the same keys to your Input Actions with
+`UInputMappingContext::MapKey`, or generate a ready-made context with `Scripts/create_sample_input.py`.
+
+Feedback calls made in the same frame are merged into one report, because the gun services one output
+report at a time. Per component the last call wins, so **Set Led Color** followed by **Flash Led** in the
+same frame shows the flash and the colour is lost; the flash ends with the LED dark. Space them out if you
+want both.
+
+These keys only arrive in **Gamepad mode**. In mouse mode the gun is the system mouse, so bind
+`EKeys::LeftMouseButton` for the trigger instead; feedback works in both modes.
+
+### Enhanced Input with the shipped assets
+
+The plugin ships Input Actions and a Mapping Context, so there is nothing to author: `IA_LightgunFire`,
+`IA_LightgunAim`, `IA_LightgunReload` and `IMC_Lightgun`, in **Plugins > Blamcon Lightguns Content > Input**.
+The context maps each action to the gun and to a keyboard or mouse equivalent, so the same actions work with
+or without hardware: fire from the trigger or the left mouse button, reload from the gun's A button or the R
+key, and aim from the gun or the mouse.
+
+```cpp
+#include "EnhancedInputComponent.h"
+#include "EnhancedInputSubsystems.h"
+#include "InputMappingContext.h"
+
+void AMyCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (const APlayerController* const PC = Cast<APlayerController>(GetController()))
+	{
+		if (UEnhancedInputLocalPlayerSubsystem* const Input = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()))
+		{
+			Input->AddMappingContext(LoadObject<UInputMappingContext>(nullptr, TEXT("/BlamconLightguns/Input/IMC_Lightgun")), 0);
+		}
+	}
+}
+
+void AMyCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+{
+	Super::SetupPlayerInputComponent(PlayerInputComponent);
+
+	UInputAction* const FireAction = LoadObject<UInputAction>(nullptr, TEXT("/BlamconLightguns/Input/IA_LightgunFire"));
+	Cast<UEnhancedInputComponent>(PlayerInputComponent)->BindAction(FireAction, ETriggerEvent::Started, this, &AMyCharacter::Fire);
+}
+```
+
+Copy the assets into your own project's content if you want to keep changes when the plugin updates. In a
+shipping game, reference them with `TObjectPtr<UInputAction>` properties set in a Blueprint subclass rather
+than loading by path.
+
+The assets were saved by Unreal 5.6, and Unreal can't open assets from a newer version than its own. On 5.4
+or 5.5 they fail to load; run `Scripts/create_sample_input.py` to regenerate them for your engine, as
+[docs/TESTING.md](docs/TESTING.md#sample-input-mapping-context) describes. The script is the source of truth
+for what the assets contain, and everything else in the plugin is source that builds on 5.4.
+
+For connection and warning events, bind to `UBlamconLightgunSubsystem` (a Game Instance Subsystem). The handlers
+must be `UFUNCTION`s:
+
+```cpp
+#include "BlamconLightgunSubsystem.h"
+
+UBlamconLightgunSubsystem* Lightguns = GetGameInstance()->GetSubsystem<UBlamconLightgunSubsystem>();
+Lightguns->OnLightgunConnected.AddDynamic(this, &AMyPlayerController::HandleLightgunConnected);
+Lightguns->OnLightgunWarning.AddDynamic(this, &AMyPlayerController::HandleLightgunWarning);
+```
+
+Unreal's own force feedback works too: a Force Feedback Effect played on a player controller drives that
+player's gun (large motors as rumble, small motors as recoil).
+
+## Documentation
+
+- [docs/TESTING.md](docs/TESTING.md): first test, test checklist, troubleshooting, known limitations, and
+  how to report problems
+- [CONTRIBUTING.md](CONTRIBUTING.md): repository layout and developer tests
+
+## Crediting Blamcon
+
+You're welcome to link [blamcon.com](https://blamcon.com) from your game, and players looking for a gun
+have somewhere to go. If you'd like a logo at a particular size or format, ask on the
+[issues page](https://github.com/Props3D/UnrealLightguns/issues) — they aren't shipped with the plugin, so
+nobody downloads artwork they don't need.
+
+## License
+
+MIT, except hidapi, which is used under its BSD-3-Clause option. See [LICENSE](LICENSE).
